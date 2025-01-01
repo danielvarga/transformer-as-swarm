@@ -100,20 +100,23 @@ class ScaledTransformerEncoderLayer(nn.TransformerEncoderLayer):
     def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, **kwargs):
         super().__init__(d_model, nhead, dim_feedforward=dim_feedforward, **kwargs)
         self.scaling_factor = scaling_factor  # Store the scaling factor
+        # in 3D, layernorm is not good, it forces the tokens onto a circle.
+        self.norm1 = nn.Identity()
+        self.norm2 = nn.Identity()
+        # in our continuous dynamics, dropout hurts performance
+        self.dropout = nn.Identity()
+        self.dropout1 = nn.Identity()
+        self.dropout2 = nn.Identity()
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
         # Self-attention with residual connection and scaling
         src2 = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=src_key_padding_mask)[0]
-        src = src + self.scaling_factor * self.dropout1(src2)
-        if hasattr(self, 'norm1') and self.norm1 is not None:  # Handle custom norm
-            src = self.norm1(src)
+        src = src + self.scaling_factor * src2
 
         # Feedforward with residual connection and scaling
-        src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
-        src = src + self.scaling_factor * self.dropout2(src2)
-        if hasattr(self, 'norm2') and self.norm2 is not None:  # Handle custom norm
-            src = self.norm2(src)
+        src2 = self.linear2(self.activation(self.linear1(src)))
+        src = src + self.scaling_factor * src2
 
         return src
 
@@ -134,10 +137,6 @@ class MNISTTransformer(nn.Module):
                 ]
             )
 
-        # in 3D, layernorm is not good, it forces the tokens onto a circle.
-        for encoder_layer in self.encoder_layers:
-            encoder_layer.norm1 = nn.Identity()
-            encoder_layer.norm2 = nn.Identity()
         model = self.encoder_layers[0]
         print(model)
         total_params = sum(p.numel() for p in model.parameters())
@@ -146,7 +145,7 @@ class MNISTTransformer(nn.Module):
         print(f"{trainable_params = }")
         for p in model.parameters():
             print(p.numel(), p.shape)
-
+        print("-----")
 
     def forward(self, tokens, lengths, return_all_layers=False):
         # Zero-pad the tokens to match d_model
