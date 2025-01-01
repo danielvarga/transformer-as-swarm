@@ -78,7 +78,7 @@ def create_dataloader(train=True, batch_size=32, shuffle=True):
 
 # Load and tokenize MNIST dataset
 def load_mnist(train=True):
-    l1 = 2 ; l2 = 5
+    l1 = 5 ; l2 = 6
     transform = transforms.Compose([transforms.ToTensor()])
     mnist_data = torchvision.datasets.MNIST(root='./data', train=train, download=True, transform=transform)
     mnist_01 = [(img, label) for img, label in mnist_data if label in {l1, l2}]
@@ -111,8 +111,8 @@ def vis_boids():
 
 
 class ScaledTransformerEncoderLayer(nn.TransformerEncoderLayer):
-    def __init__(self, d_model, nhead, scaling_factor=1.0, **kwargs):
-        super().__init__(d_model, nhead, **kwargs)
+    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, **kwargs):
+        super().__init__(d_model, nhead, dim_feedforward=dim_feedforward, **kwargs)
         self.scaling_factor = scaling_factor  # Store the scaling factor
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
@@ -152,6 +152,14 @@ class MNISTTransformer(nn.Module):
         for encoder_layer in self.encoder_layers:
             encoder_layer.norm1 = nn.Identity()
             encoder_layer.norm2 = nn.Identity()
+        model = self.encoder_layers[0]
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"{total_params = }")
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"{trainable_params = }")
+        for p in model.parameters():
+            print(p.numel(), p.shape)
+
 
     def forward(self, tokens, lengths, return_all_layers=False):
         # Zero-pad the tokens to match d_model
@@ -191,17 +199,18 @@ def collate_fn(batch):
 
 # Training loop
 def train_model():
+    model = MNISTTransformer().to(torch_device)
+
     train_dataloader = create_dataloader(train=True, batch_size=32, shuffle=True)
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False)
 
-    model = MNISTTransformer().to(torch_device)
     # criterion = nn.CrossEntropyLoss()
     # criterion = CustomLoss(target_dim=3, scaling_factor=10.0)
     criterion = SumL2Loss(scaling_factor=10.0)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
     # Training loop
-    for epoch in range(40):
+    for epoch in range(60):
         total_loss = 0
         for batch_tokens, batch_lengths, batch_labels in train_dataloader:
             optimizer.zero_grad()
@@ -261,9 +270,9 @@ def main_vis():
         layer_outputs = np.array(layer_outputs)
         layer_outputs = np.transpose(layer_outputs, (1, 0, 2))
         num_tokens, num_transformer_blocks_plus_1, latent_dim = layer_outputs.shape
-        np.save(f"acts_d{latent_dim}_b{num_transformer_blocks_plus_1 - 1}_s{sample_index}_recurrent.npy", layer_outputs)
+        np.save(f"acts08_d{latent_dim}_b{num_transformer_blocks_plus_1 - 1}_s{sample_index}_recurrent.npy", layer_outputs)
 
 
 if __name__ == "__main__":
-    # model = train_model()
+    model = train_model()
     main_vis() ; exit()
