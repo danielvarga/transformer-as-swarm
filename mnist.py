@@ -22,32 +22,18 @@ class CustomDataset(Dataset):
         return self.tokens[idx], self.labels[idx]
 
 
-class CustomLoss(nn.Module):
-    def __init__(self, target_dim, scaling_factor=1.0):
-        super(CustomLoss, self).__init__()
-        self.target_dim = target_dim  # Dimensionality of the target vector
-        self.mse = nn.MSELoss()
-        self.scaling_factor = scaling_factor
-
-    def forward(self, predictions, labels):
-        # Create the target tensor based on labels
-        targets = torch.zeros_like(predictions)
-        targets[:, 0] = torch.where(labels == 0, -self.scaling_factor, self.scaling_factor)
-        # Compute the loss
-        loss = self.mse(predictions, targets)
-        return loss
-
-
-class SumL2Loss(nn.Module):
+# each boid gravitates toward a target determined by the label
+class MeanL2Loss(nn.Module):
     def __init__(self, scaling_factor=1.0):
-        super(SumL2Loss, self).__init__()
+        super(MeanL2Loss, self).__init__()
         self.scaling_factor = scaling_factor
 
     def forward(self, predictions, labels, mask=None):
         """
         Parameters:
             predictions: Tensor of shape (batch_size, num_tokens, latent_dim)
-            labels: Tensor of shape (batch_size,)
+            labels: Tensor of shape (batch_size,), turned into an L2 target for each token,
+            (-scaling_factor, 0, ..., 0) for label == 0, (+scaling_factor, 0, ..., 0) for label == 1
             mask: Optional Tensor of shape (batch_size, num_tokens) with 1 for valid tokens and 0 for padding
 
         Returns:
@@ -65,7 +51,7 @@ class SumL2Loss(nn.Module):
             l2_distances = l2_distances * mask  # Zero out padded token distances
 
         # Sum all L2 distances
-        loss = l2_distances.sum()
+        loss = l2_distances.mean()
         return loss
 
 
@@ -153,6 +139,7 @@ class MNISTTransformer(nn.Module):
             encoder_layer.norm1 = nn.Identity()
             encoder_layer.norm2 = nn.Identity()
         model = self.encoder_layers[0]
+        print(model)
         total_params = sum(p.numel() for p in model.parameters())
         print(f"{total_params = }")
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -204,13 +191,11 @@ def train_model():
     train_dataloader = create_dataloader(train=True, batch_size=32, shuffle=True)
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False)
 
-    # criterion = nn.CrossEntropyLoss()
-    # criterion = CustomLoss(target_dim=3, scaling_factor=10.0)
-    criterion = SumL2Loss(scaling_factor=10.0)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    criterion = MeanL2Loss(scaling_factor=10.0)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
-    for epoch in range(60):
+    for epoch in range(20):
         total_loss = 0
         for batch_tokens, batch_lengths, batch_labels in train_dataloader:
             optimizer.zero_grad()
