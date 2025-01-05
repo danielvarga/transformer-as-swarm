@@ -22,6 +22,25 @@ class CustomDataset(Dataset):
         return self.tokens[idx], self.labels[idx]
 
 
+
+def labels_to_binary_targets(labels):
+    """
+    Converts MNIST labels (0–7) into 3-bit binary targets.
+
+    Args:
+        labels (torch.Tensor): A 1D tensor of MNIST labels (restricted to 0–7).
+
+    Returns:
+        torch.Tensor: A 2D tensor of shape (batch_size, 3), where each row is a
+                      3-bit binary representation of the corresponding label.
+    """
+    if not torch.all((0 <= labels) & (labels <= 7)):
+        raise ValueError("Labels must be in the range 0–7.")
+    
+    # Convert labels to binary and return as a 3D tensor
+    return (labels.unsqueeze(1) >> torch.arange(2, -1, -1).to(torch_device)) & 1
+
+
 # each boid gravitates toward a target determined by the label
 class MeanL2Loss(nn.Module):
     def __init__(self, scaling_factor=1.0):
@@ -40,11 +59,12 @@ class MeanL2Loss(nn.Module):
             Scalar loss value (sum of L2 distances for all valid tokens)
         """
 
-        targets = torch.zeros_like(predictions)
-        targets[:, :, 0] = torch.where(labels.unsqueeze(1) == 0, -self.scaling_factor, self.scaling_factor)
+        targets = torch.zeros((predictions.shape[0], predictions.shape[2])).to(predictions.dtype).to(torch_device)
+        # targets[:, :, 0] = torch.where(labels.unsqueeze(1) == 0, -self.scaling_factor, self.scaling_factor)
+        targets[:, :3] = self.scaling_factor * (2 * labels_to_binary_targets(labels).to(predictions.dtype) - 1)
 
         # Compute L2 distances
-        l2_distances = torch.norm(predictions - targets, p=2, dim=-1)  # Shape: (batch_size, num_tokens)
+        l2_distances = torch.norm(predictions - targets.unsqueeze(1), p=2, dim=-1)  # Shape: (batch_size, num_tokens, latent_dim)
 
         # Apply mask if provided
         if mask is not None:
@@ -62,24 +82,33 @@ def create_dataloader(train=True, batch_size=32, shuffle=True):
     return dataloader
 
 
+def tokenize_image(image):
+    pixels = image.squeeze().numpy()
+    tokens = [(y, x) for x in range(28) for y in range(28) if pixels[x, y] > 0.5]
+    tokens = torch.tensor(tokens, dtype=torch.float32).to(torch_device)
+    tokens /= 27
+    tokens -= 0.5
+    tokens *= 20 # in (-10, 10)
+    return tokens
+
 # Load and tokenize MNIST dataset
-def load_mnist(train=True):
+def load_binary_mnist(train=True):
     l1 = 5 ; l2 = 6
     transform = transforms.Compose([transforms.ToTensor()])
     mnist_data = torchvision.datasets.MNIST(root='./data', train=train, download=True, transform=transform)
     mnist_01 = [(img, label) for img, label in mnist_data if label in {l1, l2}]
 
-    def tokenize(image):
-        pixels = image.squeeze().numpy()
-        tokens = [(y, x) for x in range(28) for y in range(28) if pixels[x, y] > 0.5]
-        tokens = torch.tensor(tokens, dtype=torch.float32).to(torch_device)
-        tokens /= 27
-        tokens -= 0.5
-        tokens *= 20 # in (-10, 10)
-        return tokens
-
-    tokens = [tokenize(img) for img, _ in mnist_01]
+    tokens = [tokenize_image(img) for img, _ in mnist_01]
     labels = torch.tensor([0 if label == l1 else 1 for _, label in mnist_01], dtype=torch.long).to(torch_device)
+    return tokens, labels
+
+
+def load_mnist(train=True):
+    transform = transforms.Compose([transforms.ToTensor()])
+    mnist_data = torchvision.datasets.MNIST(root='./data', train=train, download=True, transform=transform)
+    mnist_3bit = [(img, label) for img, label in mnist_data if label < 8]
+    tokens = [tokenize_image(img) for img, _ in mnist_3bit]
+    labels = torch.tensor([label for _, label in mnist_3bit], dtype=torch.long).to(torch_device)
     return tokens, labels
 
 
@@ -122,13 +151,13 @@ class ScaledTransformerEncoderLayer(nn.TransformerEncoderLayer):
 
 
 class MNISTTransformer(nn.Module):
-    def __init__(self, d_model=3, nhead=1, num_layers=10):
+    def __init__(self, d_model=3, nhead=1, num_layers=5):
         super().__init__()
         self.d_model = d_model
 
         recurrent = True
         if recurrent:
-            self.encoder_layers = nn.ModuleList([ScaledTransformerEncoderLayer(d_model, nhead, batch_first=True, scaling_factor=0.1)] * num_layers)
+            self.encoder_layers = nn.ModuleList([ScaledTransformerEncoderLayer(d_model, nhead, batch_first=True, scaling_factor=0.01)] * num_layers)
         else:
             self.encoder_layers = nn.ModuleList(
                 [
@@ -187,14 +216,14 @@ def collate_fn(batch):
 def train_model():
     model = MNISTTransformer().to(torch_device)
 
-    train_dataloader = create_dataloader(train=True, batch_size=32, shuffle=True)
+    train_dataloader = create_dataloader(train=True, batch_size=256, shuffle=True)
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False)
 
     criterion = MeanL2Loss(scaling_factor=10.0)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.05)
 
     # Training loop
-    for epoch in range(20):
+    for epoch in range(60):
         total_loss = 0
         for batch_tokens, batch_lengths, batch_labels in train_dataloader:
             optimizer.zero_grad()
@@ -213,6 +242,22 @@ def train_model():
     return model
 
 
+def classifier_07(predictions, scaling_factor):
+    # Generate the 8 vertices of the unit cube
+    cube_vertices = torch.tensor(
+        [[i >> 2, (i >> 1) & 1, i & 1] for i in range(8)],
+        dtype=predictions.dtype,
+        device=predictions.device
+    )
+
+    # Compute the distances between predictions and cube vertices
+    distances = torch.cdist(predictions[..., :3], cube_vertices, p=2)
+
+    # Find the index of the closest vertex for each prediction
+    predicted_labels = torch.argmin(distances, dim=1)
+    return predicted_labels
+
+
 # Evaluation loop
 def evaluate_model(model, test_dataloader):
     correct = 0
@@ -226,7 +271,12 @@ def evaluate_model(model, test_dataloader):
             max_len = batch_tokens.size(1)
             attention_mask = torch.arange(max_len, device=batch_tokens.device).unsqueeze(0) < batch_lengths.unsqueeze(1)
             mean_token = (output * attention_mask.unsqueeze(2)).sum(dim=1) / attention_mask.sum(dim=1, keepdim=True)
-            predicted = mean_token[..., 0] > 0
+
+            # original binary:
+            # predicted = mean_token[..., 0] > 0
+
+            # labels 0 to 7 correspond to vertices of the {-10, 10}^3 cube.
+            predicted = classifier_07(mean_token, scaling_factor=10.0)
 
             correct += (predicted == batch_labels).sum().item()
             total += len(batch_labels)
@@ -254,7 +304,7 @@ def main_vis():
         layer_outputs = np.array(layer_outputs)
         layer_outputs = np.transpose(layer_outputs, (1, 0, 2))
         num_tokens, num_transformer_blocks_plus_1, latent_dim = layer_outputs.shape
-        np.save(f"acts08_d{latent_dim}_b{num_transformer_blocks_plus_1 - 1}_s{sample_index}_recurrent.npy", layer_outputs)
+        np.save(f"acts_all8_d{latent_dim}_b{num_transformer_blocks_plus_1 - 1}_recurrent_s{sample_index}.npy", layer_outputs)
 
 
 if __name__ == "__main__":
