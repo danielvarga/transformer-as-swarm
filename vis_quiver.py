@@ -7,7 +7,7 @@ from mnist import MNISTTransformer, ScaledTransformerEncoderLayer
 
 torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
-model = torch.load("model.pth").to(torch_device)
+model = torch.load("model.pth", map_location=torch.device('cpu')).to(torch_device)
 
 
 def ffwd(x):
@@ -33,6 +33,12 @@ vectors = outputs.cpu().numpy() # - grid_points  # Compute vectors (change this 
 # Reshape vectors to match the grid
 U, V, W = vectors[:, 0].reshape(X.shape), vectors[:, 1].reshape(Y.shape), vectors[:, 2].reshape(Z.shape)
 
+# Normalize vector magnitudes for RGB mapping
+magnitude = np.sqrt(U**2 + V**2 + W**2)
+magnitude_max = magnitude.max() if magnitude.max() > 0 else 1
+U_norm, V_norm, W_norm = U / magnitude_max, V / magnitude_max, W / magnitude_max
+
+
 # Normalize to [0, 1] range for RGB colors
 R = (U_norm - U_norm.min()) / (U_norm.max() - U_norm.min())
 G = (V_norm - V_norm.min()) / (V_norm.max() - V_norm.min())
@@ -48,3 +54,5 @@ ax.quiver(X, Y, Z, U, V, W, length=0.5, normalize=True, color=colors)
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
+
+plt.show()
