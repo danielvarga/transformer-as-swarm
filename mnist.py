@@ -10,6 +10,20 @@ from torch.nn.utils.rnn import pad_sequence
 torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+BINARY = (5, 6)
+RECURRENT = True
+BLOCK_NUM = 10
+D_MODEL = 3
+NHEAD = 1
+NUM_LAYERS = 10
+DIM_FEEDFORWARD = 512
+HABITAT_SCALING_FACTOR = 10
+RESIDUAL_SCALING_FACTOR = 0.1
+TRAIN_BATCH_SIZE = 256
+LR = 0.001
+EPOCH_NUM = 1
+
+
 class CustomDataset(Dataset):
     def __init__(self, tokens, labels):
         self.tokens = tokens
@@ -95,7 +109,7 @@ def tokenize_image(image):
     # Normalize the tokens directly on the GPU
     tokens /= 27
     tokens -= 0.5
-    tokens *= 20  # In range (-10, 10)
+    tokens *= 2 * HABITAT_SCALING_FACTOR  # In range (-HABITAT_SCALING_FACTOR, HABITAT_SCALING_FACTOR)
 
     return tokens
 
@@ -170,12 +184,9 @@ class ScaledTransformerEncoderLayer(nn.TransformerEncoderLayer):
 
 
 class MNISTTransformer(nn.Module):
-    def __init__(self, d_model=3, nhead=1, num_layers=10):
+    def __init__(self, d_model=3, nhead=1, num_layers=10, recurrent=True, scaling_factor=0.1):
         super().__init__()
         self.d_model = d_model
-
-        recurrent = True
-        scaling_factor = 0.1
         if recurrent:
             self.encoder_layers = nn.ModuleList([ScaledTransformerEncoderLayer(d_model, nhead, batch_first=True, scaling_factor=scaling_factor)] * num_layers)
         else:
@@ -233,17 +244,18 @@ def collate_fn(batch):
 
 # Training loop
 def train_model():
-    model = MNISTTransformer().to(torch_device)
+    model = MNISTTransformer(
+        d_model=D_MODEL, nhead=NHEAD, num_layers=NUM_LAYERS,
+        recurrent=RECURRENT, scaling_factor=RESIDUAL_SCALING_FACTOR).to(torch_device)
 
-    binary = (5, 6)
-    train_dataloader = create_dataloader(train=True, batch_size=256, shuffle=True, binary=binary)
-    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=binary)
+    train_dataloader = create_dataloader(train=True, batch_size=TRAIN_BATCH_SIZE, shuffle=True, binary=BINARY)
+    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
 
-    criterion = MeanL2Loss(scaling_factor=10.0)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = MeanL2Loss(scaling_factor=HABITAT_SCALING_FACTOR)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
 
     # Training loop
-    for epoch in range(100):
+    for epoch in range(EPOCH_NUM):
         total_loss = 0
         for batch_tokens, batch_lengths, batch_labels in train_dataloader:
             optimizer.zero_grad()
@@ -278,6 +290,12 @@ def classifier_07(predictions, scaling_factor):
     return predicted_labels
 
 
+def model_suffix():
+    labels_str = "".join(map(str, BINARY)) if BINARY is not None else "all8"
+    recurrent_str = "recurrent" if RECURRENT else "nonrecurrent"
+    return f"{labels_str}_d{D_MODEL}_b{NUM_LAYERS}_{recurrent_str}"
+
+
 # Evaluation loop
 def evaluate_model(model, test_dataloader):
     correct = 0
@@ -296,7 +314,7 @@ def evaluate_model(model, test_dataloader):
             # predicted = mean_token[..., 0] > 0
 
             # labels 0 to 7 correspond to vertices of the {-10, 10}^3 cube.
-            predicted = classifier_07(mean_token, scaling_factor=10.0)
+            predicted = classifier_07(mean_token, scaling_factor=HABITAT_SCALING_FACTOR)
 
             correct += (predicted == batch_labels).sum().item()
             total += len(batch_labels)
@@ -306,8 +324,9 @@ def evaluate_model(model, test_dataloader):
 
 
 def main_vis():
-    model = torch.load("model.pth")
-    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=(5, 6))
+    model_filename = "model." + model_suffix() + ".pth"
+    model = torch.load(model_filename)
+    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
 
     with torch.no_grad():
         for batch_tokens, batch_lengths, batch_labels in test_dataloader:
@@ -324,9 +343,9 @@ def main_vis():
         layer_outputs = np.array(layer_outputs)
         layer_outputs = np.transpose(layer_outputs, (1, 0, 2))
         num_tokens, num_transformer_blocks_plus_1, latent_dim = layer_outputs.shape
-        np.save(f"acts_56_d{latent_dim}_b{num_transformer_blocks_plus_1 - 1}_recurrent_s{sample_index}.npy", layer_outputs)
+        np.save("acts_" +  model_suffix() + f"_s{sample_index}.npy", layer_outputs)
 
 
 if __name__ == "__main__":
     model = train_model()
-    main_vis() ; exit()
+    main_vis()
