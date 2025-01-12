@@ -75,9 +75,7 @@ class MeanL2Loss(nn.Module):
         return loss
 
 
-def create_dataloader(train=True, batch_size=32, shuffle=True):
-    binary = None
-    binary = (2, 5)
+def create_dataloader(train=True, batch_size=32, shuffle=True, binary=None):
     tokens, labels = load_mnist(train=train, binary=binary)
     dataset = CustomDataset(tokens, labels)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn)
@@ -172,7 +170,7 @@ class ScaledTransformerEncoderLayer(nn.TransformerEncoderLayer):
 
 
 class MNISTTransformer(nn.Module):
-    def __init__(self, d_model=3, nhead=3, num_layers=10):
+    def __init__(self, d_model=3, nhead=1, num_layers=10):
         super().__init__()
         self.d_model = d_model
 
@@ -237,8 +235,9 @@ def collate_fn(batch):
 def train_model():
     model = MNISTTransformer().to(torch_device)
 
-    train_dataloader = create_dataloader(train=True, batch_size=256, shuffle=True)
-    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False)
+    binary = (5, 6)
+    train_dataloader = create_dataloader(train=True, batch_size=256, shuffle=True, binary=binary)
+    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=binary)
 
     criterion = MeanL2Loss(scaling_factor=10.0)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -308,7 +307,7 @@ def evaluate_model(model, test_dataloader):
 
 def main_vis():
     model = torch.load("model.pth")
-    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False)
+    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=(5, 6))
 
     with torch.no_grad():
         for batch_tokens, batch_lengths, batch_labels in test_dataloader:
@@ -325,7 +324,7 @@ def main_vis():
         layer_outputs = np.array(layer_outputs)
         layer_outputs = np.transpose(layer_outputs, (1, 0, 2))
         num_tokens, num_transformer_blocks_plus_1, latent_dim = layer_outputs.shape
-        np.save(f"acts_all8_d{latent_dim}_b{num_transformer_blocks_plus_1 - 1}_recurrent_s{sample_index}.npy", layer_outputs)
+        np.save(f"acts_56_d{latent_dim}_b{num_transformer_blocks_plus_1 - 1}_recurrent_s{sample_index}.npy", layer_outputs)
 
 
 if __name__ == "__main__":
