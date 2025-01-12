@@ -17,6 +17,7 @@ sample_id = 2 ; filename = f"acts_d2_b4_s{sample_id}_recurrent.npy"
 sample_id = sys.argv[1]
 filename = f"acts08_d3_b10_s{sample_id}_recurrent.npy"
 filename = f"acts56_d3_b10_ffwd512_recurrent_s{sample_id}.npy"
+filename = f"acts_all8_d3_b10_recurrent_s{sample_id}.npy"
 
 
 whole_activations = np.load(filename)

@@ -1,7 +1,8 @@
+
 # Transformer as swarm
 
 A recurrent transformer operating in a 3D latent space, solving MNIST classification tasks.
-Can also be interpreted as swarm intelligence.
+Can also be interpreted as form of swarm intelligence.
 
 In the following examples, a binary classification task is solved. Initially, the members of the swarm are placed at the foreground pixels of an MNIST image.
 If the swarm settles left, the image is a 5; if right, it's a 6.
@@ -11,7 +12,6 @@ If the swarm settles left, the image is a 5; if right, it's a 6.
 
 The interaction between the boids is determined by an attention block with 36 parameters, and isolated boid behavior is determined by a
 feed-forward block with 3600 parameters.
-
 
 
 # Transformer-Boid Swarm Analogy
@@ -28,7 +28,7 @@ The motivation behind the toy model above was an educational analogy between tra
 - Residual connections guarantee that boid movement is incremental.
 
 
-## Actions of the boids (Tokens)
+## Actions of the boids (tokens)
 
 At every timestep, each boid performs two actions one after another:
 
@@ -50,8 +50,23 @@ For the flocking (attention) move, each boid performs two main actions:
 - **Key**: The point where the boid projects its message.
 - **Value**: The content of the message, an instruction on which direction to move.
 
-- Each boid processes all the messages it receives from its field of vision, and acts accordingly.
+Each boid processes all the messages it receives from its field of vision, and acts accordingly.
 
 The analogy only considers single-head attention, but it is easy to extend it to multi-head attention.
 A more fundamental issue with the analogy is that in traditional swarm simulations, behavior does not depend on the timestep.
-This motivated us to consider the **recurrent** transformers above, as the missing link between transformers and swarms.
+This motivated us to consider the **recurrent** transformers above, as the missing link between transformers and swarm simulations.
+
+
+# Back to the toy model
+
+We now circle back to presenting our toy model. It is defined by a single-head transformer block that is recurrently applied 10 times.
+It does not employ positional encoding, layer normalization and dropout. To facilitate smooth incremental movement, output is scaled by
+a factor of 0.1 before the residual is added to the token embedding. (Embedding is boid position, residual is boid speed.)
+
+The behavior is fully determined by four vector fields. For the above model solving binary classification of MNIST 5 and 6 digits,
+the vector fields look like this:
+
+
+
+Without the assumption of recurrence (timestep independence), such a model can achieve 96% accuracy in 3D latent space, and
+99.0% accuracy in 100D latent space, without employing layer normalization and dropout.

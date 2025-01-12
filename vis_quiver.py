@@ -8,6 +8,7 @@ from mnist import MNISTTransformer, ScaledTransformerEncoderLayer
 torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+# model_filename = "model.all8_d3_b10_ffwd512_recurrent.pth"
 model_filename = "model.56_d3_b10_ffwd16_recurrent.pth"
 model = torch.load(model_filename, map_location=torch.device('cpu')).to(torch_device)
 
@@ -22,14 +23,14 @@ def attention(x, kind):
     mha.in_proj_weight.shape[0] == 3 * mha.in_proj_weight.shape[1]
     embed_dim = mha.in_proj_weight.shape[1]
 
-    if kind == 'q':
+    if kind == 'query':
         offset = 0
-    elif kind == 'k':
+    elif kind == 'key':
         offset = embed_dim
-    elif kind == 'v':
+    elif kind == 'value':
         offset = 2 * embed_dim
     else:
-        assert kind in ('q', 'k', 'v')
+        assert kind in ('query', 'key', 'value')
 
     weight = mha.in_proj_weight[offset: offset + embed_dim, :]
     bias = mha.in_proj_bias[offset: offset + embed_dim]
@@ -78,16 +79,24 @@ ax.set_ylabel('Y')
 ax.set_zlabel('Z')
 
 
-for kind, color in [('k', 'green'), ('q', 'blue'), ('v', 'red'), ('ffwd', 'black')]:
+color_mapping = [('key', 'green'), ('query', 'blue'), ('value', 'red'), ('feedforward', 'black')]
+
+for kind, color in color_mapping:
     with torch.no_grad():
-        if kind == 'ffwd':
+        if kind == 'feedforward':
             vectors = ffwd(grid_tensor)
-            vectors /= 20
+            vectors /= 30
         else:
             vectors = attention(grid_tensor, kind=kind).cpu().numpy()
-            vectors /= 16
+            vectors /= 15
     show_quiver(vectors, color)
     print(kind, color)
 
+# Create proxy artists for the legend
+legend_handles = [plt.Line2D([0], [0], color=color, lw=2, label=name) for name, color in color_mapping]
 
+# Add the legend to the plot
+ax.legend(handles=legend_handles, loc='upper left')
+
+plt.savefig("quiver.pdf")
 plt.show()
