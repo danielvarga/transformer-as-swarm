@@ -10,6 +10,7 @@ torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # model_filename = "model.all8_d3_b10_ffwd512_recurrent.pth"
 model_filename = "model.56_d3_b10_ffwd16_recurrent.pth"
+model_filename = "model.56_d3_b10_recurrent.pth"
 model = torch.load(model_filename, map_location=torch.device('cpu')).to(torch_device)
 
 
@@ -72,6 +73,7 @@ def show_quiver(vectors, color):
 
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(111, projection='3d')
+ax.view_init(elev=60, azim=-45)
 
 # Set labels and show plot
 ax.set_xlabel('X')
@@ -85,10 +87,10 @@ for kind, color in color_mapping:
     with torch.no_grad():
         if kind == 'feedforward':
             vectors = ffwd(grid_tensor)
-            vectors /= 30
+            vectors /= 100
         else:
             vectors = attention(grid_tensor, kind=kind).cpu().numpy()
-            vectors /= 15
+            vectors /= 8
     show_quiver(vectors, color)
     print(kind, color)
 

@@ -14,7 +14,7 @@ The interaction between the boids is determined by an attention block with 36 pa
 feed-forward block with 3600 parameters.
 
 
-# Transformer-Boid Swarm Analogy
+## Transformer - boid swarm analogy
 
 The motivation behind the toy model above was an educational analogy between transformers and swarm simulations. We now present this analogy. The concepts align like this:
 
@@ -28,7 +28,7 @@ The motivation behind the toy model above was an educational analogy between tra
 - Residual connections guarantee that boid movement is incremental.
 
 
-## Actions of the boids (tokens)
+### Boid behavior
 
 At every timestep, each boid performs two actions one after another:
 
@@ -57,16 +57,21 @@ A more fundamental issue with the analogy is that in traditional swarm simulatio
 This motivated us to consider the **recurrent** transformers above, as the missing link between transformers and swarm simulations.
 
 
-# Back to the toy model
+## Back to the toy model
 
 We now circle back to presenting our toy model. It is defined by a single-head transformer block that is recurrently applied 10 times.
-It does not employ positional encoding, layer normalization and dropout. To facilitate smooth incremental movement, output is scaled by
+(As an alternative interpretation, as a 10-block transformer with full weight-sharing between blocks.)
+It does not employ positional encoding, layer normalization or dropout. To facilitate smooth incremental movement, output is scaled by
 a factor of 0.1 before the residual is added to the token embedding. (Embedding is boid position, residual is boid speed.)
 
 The behavior is fully determined by four vector fields. For the above model solving binary classification of MNIST 5 and 6 digits,
 the vector fields look like this:
 
+![Quiver plot of vector fields](quiver.png "Quiver plot of vector fields")
 
+The 10-block recurrent (weight-shared) model achieves a binary classification accuracy of 96.43%. For comparison, a single transformer block
+achieves 89.68%, two non-recurrent blocks achieve 96.97%, two recurrent blocks achieve 95.03%.
 
-Without the assumption of recurrence (timestep independence), such a model can achieve 96% accuracy in 3D latent space, and
-99.0% accuracy in 100D latent space, without employing layer normalization and dropout.
+Needless to say, we do not promote these models as relevant in practical applications. Their performance is limited
+both by their recurrent nature and their low embedding dimension. A 100-dimensional, 10-block non-recurrent,
+but otherwise identical model achieves 99.35% classification accuracy.
