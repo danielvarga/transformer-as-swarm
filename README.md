@@ -2,7 +2,7 @@
 # Transformer as swarm
 
 A recurrent transformer operating in a 3D latent space, solving MNIST classification tasks.
-Can also be interpreted as form of swarm intelligence.
+Can also be interpreted as a form of swarm intelligence.
 
 In the following examples, a binary classification task is solved. Initially, the members of the swarm are placed at the foreground pixels of an MNIST image.
 If the swarm settles left, the image is a 5; if right, it's a 6.
@@ -18,10 +18,12 @@ feed-forward block with 3600 parameters.
 
 The motivation behind the toy model above was an educational analogy between transformers and swarm simulations. We now present this analogy. The concepts align like this:
 
-- token = boid (bird-like objects, the individual members of the swarm)
+- token = boid (bird-like object, the individual member of the swarm)
 - transformer embedding space = boid habitat
 - attention block = implements flocking behavior
 - feedforward block = implements boid behavior when not interacting with other boids
+
+Furthermore,
 
 - The boids do not have internal state / memory. They only encode information by their positions.
 - Each sequentially executed transformer block corresponds to a timestep of the swarm simulation.
@@ -38,13 +40,13 @@ At every timestep, each boid performs two actions one after another:
 For the purposes of the analogy, let us imagine the boid habitat as a massive spherical dome.
 For the flocking (attention) move, each boid performs two main actions:
 
-1. **Look at a Point on the Dome**:
+1. **Look at a point on the dome**:
    - The boid turns its gaze towards a specific point on the spherical dome, which represents the **query** in the transformer.
 
-2. **Project a Message to a Point on the Dome**:
+2. **Project a message to a point on the dome**:
    - The boid sends a message to a specific point on the dome.
      - The **position** of the message corresponds to the **key**.
-     - The **content** of the message ("move in this direction") corresponds to the **value**.
+     - The **content** of the message ("move in this direction") corresponds to the **value**. It is itself a point on the dome.
 
 - **Query**: The direction the boid looks (its focus of attention).
 - **Key**: The point where the boid projects its message.
@@ -73,5 +75,5 @@ The 10-block recurrent (weight-shared) model achieves a binary classification ac
 achieves 89.68%, two non-recurrent blocks achieve 96.97%, two recurrent blocks achieve 95.03%.
 
 Needless to say, we do not promote these models as relevant in practical applications. Their performance is limited
-both by their recurrent nature and their low embedding dimension. A 100-dimensional, 10-block non-recurrent,
+both by their recurrent nature and their low embedding dimension. A 100-dimensional, 10-block, non-recurrent,
 but otherwise identical model achieves 99.35% classification accuracy.
