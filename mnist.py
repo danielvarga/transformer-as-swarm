@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,18 +11,18 @@ from torch.nn.utils.rnn import pad_sequence
 torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-BINARY = (5, 6)
+BINARY = (2, 3)
 RECURRENT = True
 BLOCK_NUM = 10
-D_MODEL = 3
+D_MODEL = 2
 NHEAD = 10
 NUM_LAYERS = 10
 DIM_FEEDFORWARD = 512
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
 TRAIN_BATCH_SIZE = 256
-LR = 0.001
-EPOCH_NUM = 10
+LR = 0.0005
+EPOCH_NUM = 60
 
 
 class CustomDataset(Dataset):
@@ -48,11 +49,12 @@ def labels_to_binary_targets(labels):
         torch.Tensor: A 2D tensor of shape (batch_size, 3), where each row is a
                       3-bit binary representation of the corresponding label.
     """
-    if not torch.all((0 <= labels) & (labels <= 7)):
+    # TODO HACK HACK HACK
+    if not torch.all((0 <= labels) & (labels <= 3)):
         raise ValueError("Labels must be in the range 0–7.")
     
     # Convert labels to binary and return as a 3D tensor
-    return (labels.unsqueeze(1) >> torch.arange(2, -1, -1).to(torch_device)) & 1
+    return (labels.unsqueeze(1) >> torch.arange(1, -1, -1).to(torch_device)) & 1
 
 
 # each boid gravitates toward a target determined by the label
@@ -75,7 +77,7 @@ class MeanL2Loss(nn.Module):
 
         targets = torch.zeros((predictions.shape[0], predictions.shape[2])).to(predictions.dtype).to(torch_device)
         # targets[:, :, 0] = torch.where(labels.unsqueeze(1) == 0, -self.scaling_factor, self.scaling_factor)
-        targets[:, :3] = self.scaling_factor * (2 * labels_to_binary_targets(labels).to(predictions.dtype) - 1)
+        targets[:, :2] = self.scaling_factor * (2 * labels_to_binary_targets(labels).to(predictions.dtype) - 1)
 
         # Compute L2 distances
         l2_distances = torch.norm(predictions - targets.unsqueeze(1), p=2, dim=-1)  # Shape: (batch_size, num_tokens, latent_dim)
@@ -142,6 +144,7 @@ def load_mnist(train=True, binary=None):
     tokens = [tokenize_image(img) for img, _ in mnist_3bit]
     labels = torch.tensor([label for _, label in mnist_3bit], dtype=torch.long).to(torch_device)
     print("dataset preparation done")
+    sys.stdout.flush()
     return tokens, labels
 
 
@@ -328,6 +331,7 @@ def train_model():
             optimizer.step()
             total_loss += loss.item()
         print(f"Epoch {epoch + 1}, Loss: {total_loss / len(train_dataloader):.4f}")
+        sys.stdout.flush()
         evaluate_model(model, test_dataloader)
     torch.save(model, "model.pth")
     return model
@@ -336,13 +340,13 @@ def train_model():
 def classifier_07(predictions, scaling_factor):
     # Generate the 8 vertices of the unit cube
     cube_vertices = torch.tensor(
-        [[i >> 2, (i >> 1) & 1, i & 1] for i in range(8)],
+        [[(i >> 1) & 1, i & 1] for i in range(4)],
         dtype=predictions.dtype,
         device=predictions.device
     )
 
     # Compute the distances between predictions and cube vertices
-    distances = torch.cdist(predictions[..., :3], cube_vertices, p=2)
+    distances = torch.cdist(predictions[..., :2], cube_vertices, p=2)
 
     # Find the index of the closest vertex for each prediction
     predicted_labels = torch.argmin(distances, dim=1)
@@ -380,7 +384,7 @@ def evaluate_model(model, test_dataloader):
 
     accuracy = correct / total
     print(f"Evaluation Accuracy: {accuracy:.4f}")
-
+    sys.stdout.flush()
 
 def main_vis():
     model_filename = "model." + model_suffix() + ".pth"
