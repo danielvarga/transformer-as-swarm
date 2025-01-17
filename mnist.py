@@ -14,14 +14,14 @@ BINARY = (5, 6)
 RECURRENT = True
 BLOCK_NUM = 10
 D_MODEL = 3
-NHEAD = 1
+NHEAD = 10
 NUM_LAYERS = 10
 DIM_FEEDFORWARD = 512
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
 TRAIN_BATCH_SIZE = 256
 LR = 0.001
-EPOCH_NUM = 1
+EPOCH_NUM = 10
 
 
 class CustomDataset(Dataset):
@@ -158,22 +158,81 @@ def vis_boids():
 # vis_boids() ; exit()
 
 
-class ScaledTransformerEncoderLayer(nn.TransformerEncoderLayer):
+class AveragedMultiheadAttention(nn.Module):
+    def __init__(self, d_model, nhead, batch_first=False):
+        super().__init__()
+        self.nhead = nhead
+        self.d_model = d_model
+        
+        # Each head gets its own set of projection matrices
+        self.q_projs = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(nhead)])
+        self.k_projs = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(nhead)])
+        self.v_projs = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(nhead)])
+        
+        self.batch_first = batch_first
+
+    def forward(self, query, key, value, attn_mask=None, key_padding_mask=None):
+        if not self.batch_first:
+            query = query.transpose(0, 1)
+            key = key.transpose(0, 1)
+            value = value.transpose(0, 1)
+
+        batch_size, seq_len, _ = query.shape
+        scaling = float(self.d_model) ** -0.5
+        
+        # Store outputs from each head
+        head_outputs = []
+        
+        for head in range(self.nhead):
+            q = self.q_projs[head](query) * scaling
+            k = self.k_projs[head](key)
+            v = self.v_projs[head](value)
+            
+            # Compute attention scores
+            attn_weights = torch.bmm(q, k.transpose(1, 2))
+            
+            if key_padding_mask is not None:
+                attn_weights = attn_weights.masked_fill(
+                    key_padding_mask.unsqueeze(1), float('-inf'))
+            
+            if attn_mask is not None:
+                attn_weights = attn_weights.masked_fill(attn_mask, float('-inf'))
+            
+            attn_weights = torch.softmax(attn_weights, dim=-1)
+            head_output = torch.bmm(attn_weights, v)
+            head_outputs.append(head_output)
+        
+        # Average the outputs from all heads
+        output = torch.stack(head_outputs, dim=0).mean(dim=0)
+        
+        if not self.batch_first:
+            output = output.transpose(0, 1)
+        
+        return output, None
+
+
+class ScaledTransformerEncoderLayer(nn.Module):
     def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, **kwargs):
-        super().__init__(d_model, nhead, dim_feedforward=dim_feedforward, **kwargs)
-        self.scaling_factor = scaling_factor  # Store the scaling factor
-        # in 3D, layernorm is not good, it forces the tokens onto a circle.
+        super().__init__()
+        self.scaling_factor = scaling_factor
+        # Replace the default attention with our custom attention that averages heads
+        self.self_attn = AveragedMultiheadAttention(d_model, nhead, batch_first=True)
+        # Remove normalization and dropout as per the original
         self.norm1 = nn.Identity()
         self.norm2 = nn.Identity()
         # in our continuous dynamics, dropout hurts performance
         self.dropout = nn.Identity()
         self.dropout1 = nn.Identity()
         self.dropout2 = nn.Identity()
+        # Add feedforward network components
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
+        self.activation = nn.ReLU()
 
     def forward(self, src, src_mask=None, src_key_padding_mask=None):
         # Self-attention with residual connection and scaling
-        src2 = self.self_attn(src, src, src, attn_mask=src_mask,
-                              key_padding_mask=src_key_padding_mask)[0]
+        src2, _ = self.self_attn(src, src, src, attn_mask=src_mask,
+                              key_padding_mask=src_key_padding_mask)
         src = src + self.scaling_factor * src2
 
         # Feedforward with residual connection and scaling
