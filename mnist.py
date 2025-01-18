@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,7 +11,7 @@ from torch.nn.utils.rnn import pad_sequence
 torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-BINARY = (5, 6)
+BINARY = None
 RECURRENT = True
 BLOCK_NUM = 10
 D_MODEL = 3
@@ -20,8 +21,8 @@ DIM_FEEDFORWARD = 512
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
 TRAIN_BATCH_SIZE = 256
-LR = 0.001
-EPOCH_NUM = 10
+LR = 0.005
+EPOCH_NUM = 60
 
 
 class CustomDataset(Dataset):
@@ -142,6 +143,7 @@ def load_mnist(train=True, binary=None):
     tokens = [tokenize_image(img) for img, _ in mnist_3bit]
     labels = torch.tensor([label for _, label in mnist_3bit], dtype=torch.long).to(torch_device)
     print("dataset preparation done")
+    sys.stdout.flush()
     return tokens, labels
 
 
@@ -328,6 +330,7 @@ def train_model():
             optimizer.step()
             total_loss += loss.item()
         print(f"Epoch {epoch + 1}, Loss: {total_loss / len(train_dataloader):.4f}")
+        sys.stdout.flush()
         evaluate_model(model, test_dataloader)
     torch.save(model, "model.pth")
     return model
@@ -380,10 +383,12 @@ def evaluate_model(model, test_dataloader):
 
     accuracy = correct / total
     print(f"Evaluation Accuracy: {accuracy:.4f}")
+    sys.stdout.flush()
 
 
 def main_vis():
-    model_filename = "model." + model_suffix() + ".pth"
+    # model_filename = "model." + model_suffix() + ".pth"
+    model_filename = "model.pth"
     model = torch.load(model_filename)
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
 
