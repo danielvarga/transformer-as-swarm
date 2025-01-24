@@ -241,8 +241,9 @@ class ScaledTransformerEncoderLayer(nn.Module):
         src2, _ = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=src_key_padding_mask)
         
-        # Calculate L2 penalty for attention output
-        attn_l2_loss = self.l2_penalty * torch.norm(src2, p=2)
+        # Use getattr to provide a default value if attribute doesn't exist
+        l2_penalty = getattr(self, 'l2_penalty', 0.01)
+        attn_l2_loss = l2_penalty * torch.norm(src2, p=2)
         
         src = src + self.scaling_factor * src2
 
@@ -250,7 +251,7 @@ class ScaledTransformerEncoderLayer(nn.Module):
         src2 = self.linear2(self.activation(self.linear1(src)))
         
         # Calculate L2 penalty for feedforward output
-        ffn_l2_loss = self.l2_penalty * torch.norm(src2, p=2)
+        ffn_l2_loss = l2_penalty * torch.norm(src2, p=2)
         
         src = src + self.scaling_factor * src2
 
@@ -490,5 +491,5 @@ def main_vis():
 
 
 if __name__ == "__main__":
-    # model = train_model() ; exit()
-    main_vis()
+    model = train_model() ; exit()
+    #main_vis()
