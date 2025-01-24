@@ -14,11 +14,10 @@ torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
 BINARY = (2, 3)
 RECURRENT = True
-BLOCK_NUM = 10
 D_MODEL = 2
-NHEAD = 10
-NUM_LAYERS = 10
-DIM_FEEDFORWARD = 512
+NHEAD = 5
+NUM_LAYERS = 5 # number of timesteps when interpreted as swarm simulation
+DIM_FEEDFORWARD = 50
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
 TRAIN_BATCH_SIZE = 256
@@ -53,7 +52,11 @@ def labels_to_binary_targets(labels):
     # TODO HACK HACK HACK
     if not torch.all((0 <= labels) & (labels <= 3)):
         raise ValueError("Labels must be in the range 0–7.")
-    
+
+    if not torch.all((0 <= labels) & (labels <= 2)):
+        raise ValueError("Labels must be in the range 0–1.")
+    labels = labels * 3 # because we want them in opposite corners
+
     # Convert labels to binary and return as a 3D tensor
     return (labels.unsqueeze(1) >> torch.arange(1, -1, -1).to(torch_device)) & 1
 
@@ -250,11 +253,15 @@ class MNISTTransformer(nn.Module):
         super().__init__()
         self.d_model = d_model
         if recurrent:
-            self.encoder_layers = nn.ModuleList([ScaledTransformerEncoderLayer(d_model, nhead, batch_first=True, scaling_factor=scaling_factor)] * num_layers)
+            self.encoder_layers = nn.ModuleList([ScaledTransformerEncoderLayer(d_model, nhead,
+                batch_first=True, scaling_factor=scaling_factor,
+                dim_feedforward=DIM_FEEDFORWARD)] * num_layers)
         else:
             self.encoder_layers = nn.ModuleList(
                 [
-                    ScaledTransformerEncoderLayer(d_model, nhead, batch_first=True, scaling_factor=scaling_factor) for _ in range(num_layers)
+                    ScaledTransformerEncoderLayer(d_model, nhead,
+                        batch_first=True, scaling_factor=scaling_factor,
+                        dim_feedforward=DIM_FEEDFORWARD) for _ in range(num_layers)
                 ]
             )
 
@@ -379,6 +386,11 @@ def evaluate_model(model, test_dataloader):
             # labels 0 to 7 correspond to vertices of the {-10, 10}^3 cube.
             predicted = classifier_07(mean_token, scaling_factor=HABITAT_SCALING_FACTOR)
 
+            assert BINARY is not None
+            # TODO HACK HACK HACK
+            # 0 and 3 are the labels so that boids gather in opposing corners
+            predicted //= 3
+
             correct += (predicted == batch_labels).sum().item()
             total += len(batch_labels)
 
@@ -426,7 +438,8 @@ def main_vis():
     # model_filename = "model." + model_suffix() + ".pth"
     model_filename = "model.pth"
     model_filename = "model.23_d2_b10_recurrent_multihead10.pth"
-    model = torch.load(model_filename, map_location=torch.device('cpu'))
+    model_filename = "model.23_d2_b5_recurrent_multihead5_ffwd50.pth"
+    model = torch.load(model_filename, map_location=torch_device)
 
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
 
@@ -452,5 +465,5 @@ def main_vis():
 
 
 if __name__ == "__main__":
-    # model = train_model()
+    # model = train_model() ; exit()
     main_vis()
