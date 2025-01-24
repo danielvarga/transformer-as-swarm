@@ -21,7 +21,7 @@ DIM_FEEDFORWARD = 512
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
 TRAIN_BATCH_SIZE = 256
-LR = 0.0005
+LR = 0.005
 EPOCH_NUM = 60
 
 
@@ -386,8 +386,10 @@ def evaluate_model(model, test_dataloader):
     print(f"Evaluation Accuracy: {accuracy:.4f}")
     sys.stdout.flush()
 
+
 def main_vis():
-    model_filename = "model." + model_suffix() + ".pth"
+    # model_filename = "model." + model_suffix() + ".pth"
+    model_filename = "model.pth"
     model = torch.load(model_filename)
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
 

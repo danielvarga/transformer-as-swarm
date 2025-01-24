@@ -54,15 +54,18 @@ For the flocking (attention) move, each boid performs two main actions:
 
 Each boid processes all the messages it receives from its field of vision, and acts accordingly.
 
-The analogy only considers single-head attention, but it is easy to extend it to multi-head attention.
+The analogy only considers single-head attention, but it is easy to extend it to multi-head attention, and our toy
+model described below actually employs multi-head attention.
 A more fundamental issue with the analogy is that in traditional swarm simulations, behavior does not depend on the timestep.
 This motivated us to consider the **recurrent** transformers above, as the missing link between transformers and swarm simulations.
 
 
 ## Back to the toy model
 
-We now circle back to presenting our toy model. It is defined by a single-head transformer block that is recurrently applied 10 times.
+We now circle back to presenting our toy model. It is defined by a multi-head transformer block that is recurrently applied 10 times.
 (As an alternative interpretation, as a 10-block transformer with full weight-sharing between blocks.)
+Instead of the usual projection and concatenation of transformer head outputs, the model stays in 3D, using averaging where
+traditional attention blocks use concatenation. This allows it to have 10 attention heads in 3 dimensional embedding space.
 It does not employ positional encoding, layer normalization or dropout. To facilitate smooth incremental movement, output is scaled by
 a factor of 0.1 before the residual is added to the token embedding. (Embedding is boid position, residual is boid speed.)
 
