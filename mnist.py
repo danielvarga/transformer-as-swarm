@@ -7,6 +7,7 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 from torch.nn.utils.rnn import pad_sequence
+import matplotlib.pyplot as plt
 
 torch_device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -149,7 +150,6 @@ def load_mnist(train=True, binary=None):
 
 
 def vis_boids():
-    import matplotlib.pyplot as plt
     tokens, labels = load_mnist(train=False)
     t = tokens[0].numpy()
 
@@ -387,10 +387,47 @@ def evaluate_model(model, test_dataloader):
     sys.stdout.flush()
 
 
+def middle_of_animation_grid(batch_layer_outputs_padded, batch_lengths, batch_labels):
+    # Create a 10x10 grid of subplots
+    TIMESTEP = int(sys.argv[1])
+
+    batch_layer_outputs_padded = batch_layer_outputs_padded[TIMESTEP]
+    batch_layer_outputs_padded = batch_layer_outputs_padded[:100]
+    batch_lengths = batch_lengths[:100]
+    batch_labels = batch_labels[:100]
+    fig, axes = plt.subplots(10, 10, figsize=(20, 20))
+    axes = axes.flatten()
+    
+    # Plot first 100 samples
+    for idx, (outputs, length, label) in enumerate(zip(batch_layer_outputs_padded, batch_lengths, batch_labels)):
+        if idx >= 100:  # Only plot first 100 samples
+            break
+        
+        # Create scatter plot on corresponding subplot
+
+        
+        ax = axes[idx]
+        ax.scatter(outputs[:length, 1], -outputs[:length, 0], alpha=0.5)
+        ax.set_xlim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
+        ax.set_ylim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        # Add label text to the plot
+
+        label = label+2
+        ax.set_title(f'{label}')
+    
+    plt.tight_layout()
+    plt.savefig(f"step_{TIMESTEP}.png")
+
+
+
 def main_vis():
     # model_filename = "model." + model_suffix() + ".pth"
     model_filename = "model.pth"
-    model = torch.load(model_filename)
+    model_filename = "model.23_d2_b10_recurrent_multihead10.pth"
+    model = torch.load(model_filename, map_location=torch.device('cpu'))
+
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
 
     with torch.no_grad():
@@ -398,6 +435,9 @@ def main_vis():
             batch_layer_outputs_padded = model(batch_tokens, batch_lengths, return_all_layers=True)
             break
 
+    middle_of_animation_grid(batch_layer_outputs_padded, batch_lengths, batch_labels)
+
+    exit()
     for sample_index in range(10):
         print(f"saving {sample_index} with label {batch_labels[sample_index]}")
         length = batch_lengths[sample_index]
@@ -412,5 +452,5 @@ def main_vis():
 
 
 if __name__ == "__main__":
-    model = train_model()
+    # model = train_model()
     main_vis()
