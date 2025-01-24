@@ -218,9 +218,10 @@ class AveragedMultiheadAttention(nn.Module):
 
 
 class ScaledTransformerEncoderLayer(nn.Module):
-    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, **kwargs):
+    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, l2_penalty=0.01, **kwargs):
         super().__init__()
         self.scaling_factor = scaling_factor
+        self.l2_penalty = l2_penalty
         # Replace the default attention with our custom attention that averages heads
         self.self_attn = AveragedMultiheadAttention(d_model, nhead, batch_first=True)
         # Remove normalization and dropout as per the original
@@ -239,11 +240,22 @@ class ScaledTransformerEncoderLayer(nn.Module):
         # Self-attention with residual connection and scaling
         src2, _ = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=src_key_padding_mask)
+        
+        # Calculate L2 penalty for attention output
+        attn_l2_loss = self.l2_penalty * torch.norm(src2, p=2)
+        
         src = src + self.scaling_factor * src2
 
         # Feedforward with residual connection and scaling
         src2 = self.linear2(self.activation(self.linear1(src)))
+        
+        # Calculate L2 penalty for feedforward output
+        ffn_l2_loss = self.l2_penalty * torch.norm(src2, p=2)
+        
         src = src + self.scaling_factor * src2
+
+        # Store the total L2 loss in the layer
+        self.layer_l2_loss = attn_l2_loss + ffn_l2_loss
 
         return src
 
@@ -333,7 +345,16 @@ def train_model():
             # Create attention mask (1 for valid tokens, 0 for padding)
             max_len = batch_tokens.size(1)
             attention_mask = torch.arange(max_len, device=batch_tokens.device).unsqueeze(0) < batch_lengths.unsqueeze(1)
-            loss = criterion(output, batch_labels, mask=attention_mask)
+            
+            # Calculate main loss
+            main_loss = criterion(output, batch_labels, mask=attention_mask)
+            
+            # Add L2 penalties from all transformer layers
+            l2_loss = sum(layer.layer_l2_loss for layer in model.encoder_layers)
+            
+            # Total loss is the main loss plus the L2 penalties
+            loss = main_loss + l2_loss
+            
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
@@ -418,8 +439,12 @@ def middle_of_animation_grid(batch_layer_outputs_padded, batch_lengths, batch_la
         # Create scatter plot on corresponding subplot
 
         
+        # Create scatter plot on corresponding subplot
         ax = axes[idx]
-        ax.scatter(outputs[:length, 1], -outputs[:length, 0], alpha=0.5)
+        # Create a color gradient based on position in sequence
+        colors = np.linspace(0, 1, length)
+        scatter = ax.scatter(outputs[:length, 1], -outputs[:length, 0], 
+                           c=colors, cmap='viridis', alpha=0.5)
         ax.set_xlim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
         ax.set_ylim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
         ax.set_xticks([])
@@ -438,7 +463,7 @@ def main_vis():
     # model_filename = "model." + model_suffix() + ".pth"
     model_filename = "model.pth"
     model_filename = "model.23_d2_b10_recurrent_multihead10.pth"
-    model_filename = "model.23_d2_b5_recurrent_multihead5_ffwd50.pth"
+    model_filename = "model.23_d2_b5_recurrent_multihead1_ffwd10.pth"
     model = torch.load(model_filename, map_location=torch_device)
 
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
