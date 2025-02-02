@@ -20,10 +20,10 @@ NUM_LAYERS = 5 # number of timesteps when interpreted as swarm simulation
 DIM_FEEDFORWARD = 50
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
-SEPARATION_STRENGTH = 0.01
+SEPARATION_STRENGTH = 0
 TRAIN_BATCH_SIZE = 256
 LR = 0.005
-EPOCH_NUM = 60
+EPOCH_NUM = 20
 
 
 class CustomDataset(Dataset):
@@ -85,7 +85,7 @@ class MeanL2Loss(nn.Module):
         targets[:, :2] = self.scaling_factor * (2 * labels_to_binary_targets(labels).to(predictions.dtype) - 1)
 
         # Compute L2 distances
-        l2_distances = torch.norm(predictions - targets.unsqueeze(1), p=2, dim=-1)  # Shape: (batch_size, num_tokens, latent_dim)
+        l2_distances = torch.norm(predictions - targets.unsqueeze(1), p=2, dim=-1) ** 2  # Shape: (batch_size, num_tokens, latent_dim)
 
         # Apply mask if provided
         if mask is not None:
@@ -219,7 +219,7 @@ class AveragedMultiheadAttention(nn.Module):
 
 
 class ScaledTransformerEncoderLayer(nn.Module):
-    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, l2_penalty=0.00001, **kwargs):
+    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, l2_penalty=0.00002, **kwargs):
         super().__init__()
         self.scaling_factor = scaling_factor
         self.l2_penalty = l2_penalty
@@ -241,19 +241,17 @@ class ScaledTransformerEncoderLayer(nn.Module):
         # Self-attention with residual connection and scaling
         src2, _ = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=src_key_padding_mask)
-        
-        # Use getattr to provide a default value if attribute doesn't exist
-        l2_penalty = getattr(self, 'l2_penalty', 0.01)
-        attn_l2_loss = l2_penalty * torch.norm(src2, p=2)
-        
+
+        attn_l2_loss = self.l2_penalty * torch.norm(src2, p=2)
+
         src = src + self.scaling_factor * src2
 
         # Feedforward with residual connection and scaling
         src2 = self.linear2(self.activation(self.linear1(src)))
-        
+
         # Calculate L2 penalty for feedforward output
-        ffn_l2_loss = l2_penalty * torch.norm(src2, p=2)
-        
+        ffn_l2_loss = self.l2_penalty * torch.norm(src2, p=2)
+
         src = src + self.scaling_factor * src2
 
         # Store the total L2 loss in the layer
@@ -464,16 +462,19 @@ def main_vis():
     # model_filename = "model." + model_suffix() + ".pth"
     model_filename = "model.23_d2_b10_recurrent_multihead10.pth"
     model_filename = "model.23_d2_b5_recurrent_multihead1_ffwd10.pth"
-    model_filename = "model_separation2.pth"
+    model_filename = "model.pth"
     model = torch.load(model_filename, map_location=torch_device)
 
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
 
+    vis(model, test_dataloader)
+
+
+def vis(model, test_dataloader):
     with torch.no_grad():
         for batch_tokens, batch_lengths, batch_labels in test_dataloader:
             batch_layer_outputs_padded = model(batch_tokens, batch_lengths, return_all_layers=True)
             break
-
 
     for timestep in range(len(batch_layer_outputs_padded)):
         middle_of_animation_grid(timestep, batch_layer_outputs_padded, batch_lengths, batch_labels)
@@ -513,32 +514,32 @@ def boid_separation(positions, src_key_padding_mask, separation_distance, separa
     B, N, D = positions.shape
     # Compute pairwise differences: shape (B, N, N, D)
     pos_diff = positions.unsqueeze(2) - positions.unsqueeze(1)
-    
+
     # Compute pairwise distances: shape (B, N, N)
     distances = torch.norm(pos_diff, dim=-1)
-    
+
     # Create a pairwise mask: both boids in a pair must be valid
     valid_pair_mask = src_key_padding_mask.unsqueeze(1) & src_key_padding_mask.unsqueeze(2)  # shape (B, N, N)
-    
+
     # Exclude self interactions by zeroing out the diagonal
     diag_mask = torch.eye(N, dtype=torch.bool, device=positions.device).unsqueeze(0)  # shape (1, N, N)
-    
+
     # Final mask: valid pairs (non-self) with distance > 0 and within separation_distance
     mask = valid_pair_mask & (~diag_mask) & (distances > 0) & (distances < separation_distance)
     mask_expanded = mask.unsqueeze(-1).float()  # shape (B, N, N, 1)
-    
+
     # Compute normalized repulsion vectors while avoiding division by zero with eps
     repulsion = pos_diff / (distances.unsqueeze(-1) + eps)  # shape (B, N, N, D)
-    
+
     # Only include contributions from valid neighbors
     repulsion = repulsion * mask_expanded
-    
+
     # Sum repulsion contributions from neighbors for each boid, then apply the separation weight
     separation_force = repulsion.sum(dim=2) * separation_weight  # shape (B, N, D)
-    
+
     # Zero-out forces for padded (invalid) boid positions
     separation_force = separation_force * src_key_padding_mask.unsqueeze(-1).float()
-    
+
     return separation_force
 
 
@@ -553,8 +554,10 @@ def main_train():
 
     train_model(model, train_dataloader, test_dataloader)
 
+    vis(model, test_dataloader)
+
 
 if __name__ == "__main__":
-    # model = main_train() ; exit()
-    main_vis()
+    model = main_train()
+    # main_vis()
 
