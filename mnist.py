@@ -218,7 +218,7 @@ class AveragedMultiheadAttention(nn.Module):
 
 
 class ScaledTransformerEncoderLayer(nn.Module):
-    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, l2_penalty=0.01, **kwargs):
+    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, l2_penalty=0.000001, **kwargs):
         super().__init__()
         self.scaling_factor = scaling_factor
         self.l2_penalty = l2_penalty
@@ -257,6 +257,8 @@ class ScaledTransformerEncoderLayer(nn.Module):
 
         # Store the total L2 loss in the layer
         self.layer_l2_loss = attn_l2_loss + ffn_l2_loss
+
+        src += HABITAT_SCALING_FACTOR / 100 * boid_separation(src, src_key_padding_mask, 1, separation_weight=1.0, eps=1e-6)
 
         return src
 
@@ -325,14 +327,7 @@ def collate_fn(batch):
 
 
 # Training loop
-def train_model():
-    model = MNISTTransformer(
-        d_model=D_MODEL, nhead=NHEAD, num_layers=NUM_LAYERS,
-        recurrent=RECURRENT, scaling_factor=RESIDUAL_SCALING_FACTOR).to(torch_device)
-
-    train_dataloader = create_dataloader(train=True, batch_size=TRAIN_BATCH_SIZE, shuffle=True, binary=BINARY)
-    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
-
+def train_model(model, train_dataloader, test_dataloader):
     criterion = MeanL2Loss(scaling_factor=HABITAT_SCALING_FACTOR)
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
@@ -421,11 +416,8 @@ def evaluate_model(model, test_dataloader):
     sys.stdout.flush()
 
 
-def middle_of_animation_grid(batch_layer_outputs_padded, batch_lengths, batch_labels):
-    # Create a 10x10 grid of subplots
-    TIMESTEP = int(sys.argv[1])
-
-    batch_layer_outputs_padded = batch_layer_outputs_padded[TIMESTEP]
+def middle_of_animation_grid(timestep, batch_layer_outputs_padded, batch_lengths, batch_labels):
+    batch_layer_outputs_padded = batch_layer_outputs_padded[timestep]
     batch_layer_outputs_padded = batch_layer_outputs_padded[:100]
     batch_lengths = batch_lengths[:100]
     batch_labels = batch_labels[:100]
@@ -437,34 +429,40 @@ def middle_of_animation_grid(batch_layer_outputs_padded, batch_lengths, batch_la
         if idx >= 100:  # Only plot first 100 samples
             break
         
-        # Create scatter plot on corresponding subplot
-
-        
-        # Create scatter plot on corresponding subplot
         ax = axes[idx]
-        # Create a color gradient based on position in sequence
-        colors = np.linspace(0, 1, length)
-        scatter = ax.scatter(outputs[:length, 1], -outputs[:length, 0], 
-                           c=colors, cmap='viridis', alpha=0.5)
-        ax.set_xlim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
-        ax.set_ylim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
+        # Ensure outputs are on the CPU for plotting
+        outputs_cpu = outputs.cpu() if outputs.is_cuda else outputs
+        
+        # Set x-axis limit (as defined by the plot limits)
+        x_lim = HABITAT_SCALING_FACTOR * 1.2
+        # Now, use the x coordinate of each token to define a left-to-right gradient.
+        # Normalize the x value to be within [0, 1] based on the known x-axis limits.
+        colors = ((outputs_cpu[:length, 1] + x_lim) / (2 * x_lim)).numpy()
+        
+        # Get x and y coordinates (convert to numpy arrays)
+        x_vals = outputs_cpu[:length, 1].numpy()
+        y_vals = (-outputs_cpu[:length, 0]).numpy()
+        
+        ax.scatter(x_vals, y_vals, c=colors, cmap='viridis', alpha=0.5)
+        ax.set_xlim(-x_lim, x_lim)
+        ax.set_ylim(-x_lim, x_lim)
         ax.set_xticks([])
         ax.set_yticks([])
-        # Add label text to the plot
-
-        label = label+2
+        
+        # Adjusting the label text (if needed)
+        label = label + 2
         ax.set_title(f'{label}')
     
     plt.tight_layout()
-    plt.savefig(f"step_{TIMESTEP}.png")
+    plt.savefig(f"step_{timestep}.png")
 
 
 
 def main_vis():
     # model_filename = "model." + model_suffix() + ".pth"
-    model_filename = "model.pth"
     model_filename = "model.23_d2_b10_recurrent_multihead10.pth"
     model_filename = "model.23_d2_b5_recurrent_multihead1_ffwd10.pth"
+    model_filename = "model_separation2.pth"
     model = torch.load(model_filename, map_location=torch_device)
 
     test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
@@ -474,7 +472,9 @@ def main_vis():
             batch_layer_outputs_padded = model(batch_tokens, batch_lengths, return_all_layers=True)
             break
 
-    middle_of_animation_grid(batch_layer_outputs_padded, batch_lengths, batch_labels)
+
+    for timestep in range(len(batch_layer_outputs_padded)):
+        middle_of_animation_grid(timestep, batch_layer_outputs_padded, batch_lengths, batch_labels)
 
     exit()
     for sample_index in range(10):
@@ -490,6 +490,69 @@ def main_vis():
         np.save("acts_" +  model_suffix() + f"_s{sample_index}.npy", layer_outputs)
 
 
+def boid_separation(positions, src_key_padding_mask, separation_distance, separation_weight=1.0, eps=1e-6):
+    """
+    Compute differentiable separation force for boids over a batch of scenes.
+
+    Args:
+        positions (torch.Tensor): Tensor of shape (B, N, D) containing positions of boids,
+                                  where B is the batch size, N is the maximum number of birds
+                                  (with padding for samples with fewer birds), and D is the dimension.
+        batch_lengths (torch.Tensor): 1D tensor of length B indicating the number of valid birds
+                                      in each batch sample.
+        separation_distance (float): Distance threshold within which boids repel each other.
+        separation_weight (float): Scaling factor for the separation force.
+        eps (float): Small constant used to avoid division by zero.
+
+    Returns:
+        torch.Tensor: Tensor of shape (B, N, D) with computed separation forces. For padded
+                      (invalid) bird positions, the force is zero.
+    """
+    B, N, D = positions.shape
+    # Compute pairwise differences: shape (B, N, N, D)
+    pos_diff = positions.unsqueeze(2) - positions.unsqueeze(1)
+    
+    # Compute pairwise distances: shape (B, N, N)
+    distances = torch.norm(pos_diff, dim=-1)
+    
+    # Create a pairwise mask: both boids in a pair must be valid
+    valid_pair_mask = src_key_padding_mask.unsqueeze(1) & src_key_padding_mask.unsqueeze(2)  # shape (B, N, N)
+    
+    # Exclude self interactions by zeroing out the diagonal
+    diag_mask = torch.eye(N, dtype=torch.bool, device=positions.device).unsqueeze(0)  # shape (1, N, N)
+    
+    # Final mask: valid pairs (non-self) with distance > 0 and within separation_distance
+    mask = valid_pair_mask & (~diag_mask) & (distances > 0) & (distances < separation_distance)
+    mask_expanded = mask.unsqueeze(-1).float()  # shape (B, N, N, 1)
+    
+    # Compute normalized repulsion vectors while avoiding division by zero with eps
+    repulsion = pos_diff / (distances.unsqueeze(-1) + eps)  # shape (B, N, N, D)
+    
+    # Only include contributions from valid neighbors
+    repulsion = repulsion * mask_expanded
+    
+    # Sum repulsion contributions from neighbors for each boid, then apply the separation weight
+    separation_force = repulsion.sum(dim=2) * separation_weight  # shape (B, N, D)
+    
+    # Zero-out forces for padded (invalid) boid positions
+    separation_force = separation_force * src_key_padding_mask.unsqueeze(-1).float()
+    
+    return separation_force
+
+
+# Training loop
+def main_train():
+    model = MNISTTransformer(
+        d_model=D_MODEL, nhead=NHEAD, num_layers=NUM_LAYERS,
+        recurrent=RECURRENT, scaling_factor=RESIDUAL_SCALING_FACTOR).to(torch_device)
+
+    train_dataloader = create_dataloader(train=True, batch_size=TRAIN_BATCH_SIZE, shuffle=True, binary=BINARY)
+    test_dataloader = create_dataloader(train=False, batch_size=1000, shuffle=False, binary=BINARY)
+
+    train_model(model, train_dataloader, test_dataloader)
+
+
 if __name__ == "__main__":
-    model = train_model() ; exit()
-    #main_vis()
+    # model = main_train() ; exit()
+    main_vis()
+
