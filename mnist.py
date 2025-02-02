@@ -20,6 +20,7 @@ NUM_LAYERS = 5 # number of timesteps when interpreted as swarm simulation
 DIM_FEEDFORWARD = 50
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
+SEPARATION_STRENGTH = 0.01
 TRAIN_BATCH_SIZE = 256
 LR = 0.005
 EPOCH_NUM = 60
@@ -218,7 +219,7 @@ class AveragedMultiheadAttention(nn.Module):
 
 
 class ScaledTransformerEncoderLayer(nn.Module):
-    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, l2_penalty=0.000001, **kwargs):
+    def __init__(self, d_model, nhead, scaling_factor=1.0, dim_feedforward=512, l2_penalty=0.00001, **kwargs):
         super().__init__()
         self.scaling_factor = scaling_factor
         self.l2_penalty = l2_penalty
@@ -258,7 +259,8 @@ class ScaledTransformerEncoderLayer(nn.Module):
         # Store the total L2 loss in the layer
         self.layer_l2_loss = attn_l2_loss + ffn_l2_loss
 
-        src += HABITAT_SCALING_FACTOR / 100 * boid_separation(src, src_key_padding_mask, 1, separation_weight=1.0, eps=1e-6)
+        if SEPARATION_STRENGTH != 0:
+            src += HABITAT_SCALING_FACTOR * SEPARATION_STRENGTH * boid_separation(src, src_key_padding_mask, 1, separation_weight=1.0, eps=1e-6)
 
         return src
 
