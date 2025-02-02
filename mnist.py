@@ -16,11 +16,11 @@ BINARY = (2, 3)
 RECURRENT = True
 D_MODEL = 2
 NHEAD = 5
-NUM_LAYERS = 5 # number of timesteps when interpreted as swarm simulation
+NUM_LAYERS = 10 # number of timesteps when interpreted as swarm simulation
 DIM_FEEDFORWARD = 50
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
-SEPARATION_STRENGTH = 0
+SEPARATION_STRENGTH = 1.0
 TRAIN_BATCH_SIZE = 256
 LR = 0.005
 EPOCH_NUM = 20
@@ -258,9 +258,64 @@ class ScaledTransformerEncoderLayer(nn.Module):
         self.layer_l2_loss = attn_l2_loss + ffn_l2_loss
 
         if SEPARATION_STRENGTH != 0:
-            src += HABITAT_SCALING_FACTOR * SEPARATION_STRENGTH * boid_separation(src, src_key_padding_mask, 1, separation_weight=1.0, eps=1e-6)
+            # src += HABITAT_SCALING_FACTOR * SEPARATION_STRENGTH * boid_separation(src, src_key_padding_mask, 1, separation_weight=1.0, eps=1e-6)
+
+            # ~ aka logical not because this one expects true for the alive birds.
+            self.layer_l2_loss += SEPARATION_STRENGTH * covariance_loss(src, ~ src_key_padding_mask)
 
         return src
+
+
+def covariance_loss(points, mask):
+    """
+    Compute a loss that penalizes the deviation of the covariance matrix of each point cloud from the identity matrix.
+
+    Args:
+        points (torch.Tensor): Tensor of shape (B, N, 2) containing point cloud coordinates.
+        mask (torch.Tensor): Tensor of shape (B, N) with 1 for valid points and 0 for padded ones.
+
+    Returns:
+        torch.Tensor: The computed covariance loss (a scalar).
+    """
+    B, N, _ = points.shape
+
+    # this scaling to plusminus 1 is needed to ensure that the minimal loss
+    # is attained roughly when the whole habitat is occupied.
+    points = points / HABITAT_SCALING_FACTOR
+
+    # Expand mask to match the last dimension of points
+    mask_expanded = mask.unsqueeze(-1)  # shape (B, N, 1)
+
+    # Compute the number of valid points per batch element
+    valid_counts = mask.sum(dim=1, keepdim=True)  # shape (B, 1)
+
+    # Compute the mean of the valid points for each cloud.
+    # Use masking to ignore padded points.
+    mean = (points * mask_expanded).sum(dim=1) / valid_counts  # shape (B, 2)
+
+    # Center the points by subtracting the mean.
+    # Broadcasting takes care of subtracting the mean from every point.
+    centered = points - mean.unsqueeze(1)  # shape (B, N, 2)
+
+    # Zero out the contributions from padded points.
+    centered = centered * mask_expanded  # shape (B, N, 2)
+
+    # Compute the covariance matrix for each point cloud.
+    # For each batch element: cov = (X^T X) / valid_count, where X is (N, 2)
+    # First, we need to ensure valid_counts is of shape (B, 1, 1) for proper broadcasting.
+    valid_counts = valid_counts.view(B, 1, 1)
+    cov = torch.bmm(centered.transpose(1, 2), centered) / valid_counts  # shape (B, 2, 2)
+
+    # Create an identity matrix of shape (B, 2, 2)
+    identity = torch.eye(2, device=points.device).unsqueeze(0).expand(B, 2, 2)
+
+    # Compute the difference between the covariance and the identity.
+    diff = cov - identity
+
+    # Compute the loss as the squared Frobenius norm of the difference,
+    # then average over the batch.
+    loss = torch.mean(torch.sum(diff * diff, dim=(1, 2)))
+    return loss
 
 
 class MNISTTransformer(nn.Module):
