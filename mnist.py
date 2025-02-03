@@ -472,45 +472,41 @@ def evaluate_model(model, test_dataloader):
 
 
 def middle_of_animation_grid(timestep, batch_layer_outputs_padded, batch_lengths, batch_labels):
-    batch_layer_outputs_padded = batch_layer_outputs_padded[timestep]
-    batch_layer_outputs_padded = batch_layer_outputs_padded[:100]
-    batch_lengths = batch_lengths[:100]
-    batch_labels = batch_labels[:100]
-    fig, axes = plt.subplots(10, 10, figsize=(20, 20))
+    grid_size = 10
+
+    assert len(batch_layer_outputs_padded) == grid_size ** 2
+    assert len(batch_lengths) == grid_size ** 2
+    assert len(batch_labels) == grid_size ** 2
+    fig, axes = plt.subplots(grid_size, grid_size, figsize=(20, 20))
     axes = axes.flatten()
-    
-    # Plot first 100 samples
+
     for idx, (outputs, length, label) in enumerate(zip(batch_layer_outputs_padded, batch_lengths, batch_labels)):
-        if idx >= 100:  # Only plot first 100 samples
-            break
-        
         ax = axes[idx]
         # Ensure outputs are on the CPU for plotting
         outputs_cpu = outputs.cpu() if outputs.is_cuda else outputs
-        
+
         # Set x-axis limit (as defined by the plot limits)
         x_lim = HABITAT_SCALING_FACTOR * 1.2
         # Now, use the x coordinate of each token to define a left-to-right gradient.
         # Normalize the x value to be within [0, 1] based on the known x-axis limits.
         colors = ((outputs_cpu[:length, 1] + x_lim) / (2 * x_lim)).numpy()
-        
+
         # Get x and y coordinates (convert to numpy arrays)
         x_vals = outputs_cpu[:length, 1].numpy()
         y_vals = (-outputs_cpu[:length, 0]).numpy()
-        
+
         ax.scatter(x_vals, y_vals, c=colors, cmap='viridis', alpha=0.5)
         ax.set_xlim(-x_lim, x_lim)
         ax.set_ylim(-x_lim, x_lim)
         ax.set_xticks([])
         ax.set_yticks([])
-        
+
         # Adjusting the label text (if needed)
-        label = label + 2
-        ax.set_title(f'{label}')
-    
+        # label = label + 2
+        # ax.set_title(f'{label}')
+
     plt.tight_layout()
     plt.savefig(f"step_{timestep}.png")
-
 
 
 def main_vis():
@@ -525,6 +521,31 @@ def main_vis():
     vis(model, test_dataloader)
 
 
+def filter_for_vis(batch_outputs, batch_lengths, batch_labels, k=50):
+    # Create boolean masks for each label
+    mask_A = (batch_labels == 0)
+    mask_B = (batch_labels == 1)
+
+    # Get the indices where each mask is True
+    indices_A = torch.nonzero(mask_A, as_tuple=True)[0]
+    indices_B = torch.nonzero(mask_B, as_tuple=True)[0]
+
+    # Select the first k indices for each label.
+    # (Make sure there are at least k elements for each label in your data)
+    selected_indices_A = indices_A[:k]
+    selected_indices_B = indices_B[:k]
+
+    # Concatenate the indices so that first k come from label A and the next k come from label B
+    selected_indices = torch.cat((selected_indices_A, selected_indices_B), dim=0)
+
+    # Now index into your original tensors
+    filtered_batch_outputs = batch_outputs[selected_indices]
+    filtered_batch_lengths = batch_lengths[selected_indices]
+    filtered_batch_labels = batch_labels[selected_indices]
+
+    return filtered_batch_outputs, filtered_batch_lengths, filtered_batch_labels
+
+
 def vis(model, test_dataloader):
     with torch.no_grad():
         for batch_tokens, batch_lengths, batch_labels in test_dataloader:
@@ -532,7 +553,8 @@ def vis(model, test_dataloader):
             break
 
     for timestep in range(len(batch_layer_outputs_padded)):
-        middle_of_animation_grid(timestep, batch_layer_outputs_padded, batch_lengths, batch_labels)
+        filtered_batch_outputs, filtered_batch_lengths, filtered_batch_labels = filter_for_vis(batch_layer_outputs_padded[timestep], batch_lengths, batch_labels, k=50)
+        middle_of_animation_grid(timestep, filtered_batch_outputs, filtered_batch_lengths, filtered_batch_labels)
 
     exit()
     for sample_index in range(10):
