@@ -279,9 +279,9 @@ def covariance_loss(points, mask):
     """
     B, N, _ = points.shape
 
-    # this scaling to plusminus 1 is needed to ensure that the minimal loss
-    # is attained roughly when the whole habitat is occupied.
-    points = points / HABITAT_SCALING_FACTOR
+    # this scaling to plusminus 2 is needed to ensure that the minimal loss
+    # is attained roughly when a quarter of the habitat is occupied.
+    points = points / HABITAT_SCALING_FACTOR * 2
 
     # Expand mask to match the last dimension of points
     mask_expanded = mask.unsqueeze(-1)  # shape (B, N, 1)
