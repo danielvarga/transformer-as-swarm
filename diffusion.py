@@ -248,29 +248,25 @@ def train_diffusion_model(model, dataloader, optimizer, num_epochs=EPOCH_NUM):
     torch.save(model.state_dict(), "diffusion_model.pth")
     return model
 
+
 def sample(model, lengths, num_steps=T):
-    """
-    Reverse diffusion sampling.
-    lengths: Tensor of shape (B,) indicating the number of tokens per sample.
-    Returns a tensor of shape (B, max_tokens, 2) with sampled boid positions.
-    """
     model.eval()
     B = lengths.size(0)
     max_tokens = lengths.max().item()
-    # Start from pure Gaussian noise.
     x = torch.randn(B, max_tokens, 2, device=torch_device)
     with torch.no_grad():
         for t_step in reversed(range(num_steps)):
             t_tensor = torch.full((B,), t_step, device=torch_device).float()
             pred_noise = model(x, lengths, t_tensor)
             alpha_bar = alphas_cumprod[t_step]
-            sqrt_alpha_bar = math.sqrt(alpha_bar.item())
+            # Clamp the square root to avoid division by a very small number.
+            sqrt_alpha_bar = max(math.sqrt(alpha_bar.item()), 1e-3)
             sqrt_one_minus_alpha_bar = math.sqrt(1 - alpha_bar.item())
-            # A simple reverse update (DDPM reverse process simplified)
             x = (x - sqrt_one_minus_alpha_bar * pred_noise) / sqrt_alpha_bar
-            # Optionally, add a small amount of noise for t > 0
             if t_step > 0:
                 x = x + torch.randn_like(x) * math.sqrt(betas[t_step].item())
+            if t_step == num_steps - 3:
+                break
     return x
 
 #####################################
@@ -281,7 +277,7 @@ def main():
     # Create dataloaders for training and testing.
     train_dataloader = create_dataloader(train=True, batch_size=TRAIN_BATCH_SIZE, shuffle=True, binary=BINARY)
     test_dataloader = create_dataloader(train=False, batch_size=64, shuffle=True, binary=BINARY)
-    
+
     # Instantiate the diffusion model and optimizer.
     model = MNISTDiffusionTransformer(
         d_model=D_MODEL,
@@ -289,13 +285,19 @@ def main():
         num_layers=NUM_LAYERS,
         scaling_factor=RESIDUAL_SCALING_FACTOR
     ).to(torch_device)
+
+    model.load_state_dict(torch.load("diffusion_model.pth", map_location=torch_device))
+
+
+    '''
     optimizer = optim.Adam(model.parameters(), lr=LR)
     
     # Train the diffusion model.
     print("Starting training...")
     train_diffusion_model(model, train_dataloader, optimizer, num_epochs=EPOCH_NUM)
     print("Training complete.")
-    
+    '''
+
     # Use the trained model to sample boid positions.
     # Here, we use one batch from the test dataloader to get the sequence lengths.
     batch_tokens, batch_lengths, batch_labels = next(iter(test_dataloader))
@@ -303,11 +305,14 @@ def main():
     
     # Visualize the first sample (only plot the first sample's valid tokens).
     sample0 = sampled_boids[0, :batch_lengths[0]].cpu().detach().numpy()
+    print(sample0[:, 0].min(), sample0[:, 0].max(), sample0[:, 1].min(), sample0[:, 1].max())
+    print(sample0)
     plt.figure(figsize=(6, 6))
     plt.scatter(sample0[:, 0], sample0[:, 1], s=10, alpha=0.7)
     plt.title("Sampled Boid Arrangement (Diffused Digit)")
     plt.xlim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
     plt.ylim(-HABITAT_SCALING_FACTOR*1.2, HABITAT_SCALING_FACTOR*1.2)
+    plt.savefig("vis.png")
     plt.show()
 
 if __name__ == "__main__":
