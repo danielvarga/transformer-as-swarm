@@ -570,7 +570,145 @@ def main_train():
     return model
 
 
+def generate_mnist_digits(model, num_samples=16, num_points=200, num_steps=20, scale=2.0):
+    """
+    Generate MNIST digits using the trained diffusion model.
+    
+    Args:
+        model: The trained diffusion model
+        num_samples: Number of digits to generate
+        num_points: Number of points in each digit
+        num_steps: Number of diffusion steps to run
+        scale: Initial scale for the random normal distribution
+        
+    Returns:
+        generated_digits: Final point clouds
+        all_steps: All intermediate steps for visualization
+    """
+    device = next(model.parameters()).device
+    
+    # Initialize random point clouds with normal distribution
+    point_clouds = torch.randn(num_samples, num_points, 2, device=device) * scale
+    
+    # All points are valid (no padding)
+    lengths = torch.full((num_samples,), num_points, device=device)
+    
+    # Store all steps including the initial state
+    all_steps = [point_clouds.clone()]
+    
+    # Set model to evaluation mode
+    model.eval()
+    
+    with torch.no_grad():
+        for step in range(num_steps):
+            # Apply the model to update positions
+            updated_clouds = model(point_clouds, lengths)
+            all_steps.append(updated_clouds.clone())
+            point_clouds = updated_clouds
+    
+    return point_clouds, all_steps
+
+def visualize_generated_digits(generated_digits, all_steps=None, grid_size=None):
+    """
+    Visualize the generated MNIST digits.
+    
+    Args:
+        generated_digits: Tensor of shape [num_samples, num_points, 2] with final point clouds
+        all_steps: Tensor with all intermediate steps (optional)
+        grid_size: Size of the visualization grid (default: square root of num_samples)
+    """
+    num_samples = generated_digits.shape[0]
+    
+    # Determine grid size
+    if grid_size is None:
+        grid_size = int(np.ceil(np.sqrt(num_samples)))
+    
+    # Create a figure for the final results
+    fig, axes = plt.subplots(grid_size, grid_size, figsize=(15, 15))
+    axes = axes.flatten()
+    
+    # Ensure tensor is on CPU for plotting
+    if generated_digits.is_cuda:
+        generated_digits = generated_digits.cpu()
+    
+    # Set the visualization limits based on HABITAT_SCALING_FACTOR from the model
+    x_lim = HABITAT_SCALING_FACTOR * 1.2
+    
+    for i in range(min(num_samples, len(axes))):
+        ax = axes[i]
+        points = generated_digits[i]
+        
+        # Use a color gradient based on x-coordinate (similar to existing visualization)
+        colors = ((points[:, 1] + x_lim) / (2 * x_lim)).numpy()
+        
+        ax.scatter(points[:, 1], -points[:, 0], c=colors, cmap='viridis', alpha=0.6)
+        ax.set_xlim(-x_lim, x_lim)
+        ax.set_ylim(-x_lim, x_lim)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    
+    plt.tight_layout()
+    plt.savefig("generated_digits.png")
+    plt.close()
+    
+    # If all_steps is provided, create a sequence of images showing generation process
+    if all_steps is not None:
+        if isinstance(all_steps, list):
+            num_steps = len(all_steps)
+        else:
+            if all_steps.is_cuda:
+                all_steps = [step.cpu() for step in all_steps]
+            num_steps = len(all_steps)
+        
+        # Save individual frames for each step
+        for step_idx in range(num_steps):
+            fig, axes = plt.subplots(grid_size, grid_size, figsize=(15, 15))
+            axes = axes.flatten()
+            
+            step_data = all_steps[step_idx]
+            
+            for i in range(min(num_samples, len(axes))):
+                ax = axes[i]
+                points = step_data[i]
+                
+                colors = ((points[:, 1] + x_lim) / (2 * x_lim)).numpy()
+                
+                ax.scatter(points[:, 1], -points[:, 0], c=colors, cmap='viridis', alpha=0.6)
+                ax.set_xlim(-x_lim, x_lim)
+                ax.set_ylim(-x_lim, x_lim)
+                ax.set_xticks([])
+                ax.set_yticks([])
+            
+            plt.tight_layout()
+            plt.savefig(f"generation_step_{step_idx:02d}.png")
+            plt.close()
+
+def main_generate():
+    """Generate MNIST digits using the trained model."""
+    # Load the trained model
+    model = torch.load("diffusion_model.pth", map_location=torch_device)
+    
+    # Generate MNIST digits
+    num_samples = 16  # 4x4 grid
+    num_points = 200  # Number of points per digit
+    num_steps = 20    # Number of diffusion steps
+    
+    print("Generating MNIST digits...")
+    generated_digits, all_steps = generate_mnist_digits(
+        model, 
+        num_samples=num_samples, 
+        num_points=num_points,
+        num_steps=num_steps, 
+        scale=2.0
+    )
+    
+    # Visualize the results
+    print("Visualizing results...")
+    visualize_generated_digits(generated_digits, all_steps, grid_size=4)
+    
+    print("Generation complete. Check the output images.")
 
 if __name__ == "__main__":
-    model = main_train()
+    # main_train()
     # main_vis()
+    main_generate()
