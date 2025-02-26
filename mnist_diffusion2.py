@@ -16,13 +16,13 @@ BINARY = (2, 3)
 RECURRENT = True
 D_MODEL = 2
 NHEAD = 5
-NUM_LAYERS = 10 # number of timesteps when interpreted as swarm simulation
+NUM_LAYERS = 1 # number of timesteps when interpreted as swarm simulation
 DIM_FEEDFORWARD = 50
 HABITAT_SCALING_FACTOR = 10
 RESIDUAL_SCALING_FACTOR = 0.1
 SEPARATION_STRENGTH = 1.0
 TRAIN_BATCH_SIZE = 256
-LR = 0.005
+LR = 0.01
 EPOCH_NUM = 20
 
 
@@ -515,10 +515,6 @@ def random_interpolation_pairs(interpolations, batch_size=32):
 
 # Training loop
 def main_train():
-    model = MNISTTransformer(
-        d_model=D_MODEL, nhead=NHEAD, num_layers=NUM_LAYERS,
-        recurrent=RECURRENT, scaling_factor=RESIDUAL_SCALING_FACTOR).to(torch_device)
-
     # Load the saved interpolations
     interpolations_dataset = torch.load("mnist_interpolations.pt")
     interpolations = interpolations_dataset["interpolations"]

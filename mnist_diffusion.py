@@ -206,6 +206,8 @@ def create_interpolation_from_tokens(tokens):
         # Convert the list of tensors to a single stacked tensor
         interp_tensor = torch.stack(interp_sequence)
         interpolations.append(interp_tensor)
+        if i == 1000:
+            break
     return torch.stack(interpolations)
 
 def main_create_interpolations():
