@@ -16,7 +16,14 @@ import torchvision
 import torchvision.transforms as transforms
 from matplotlib.animation import FuncAnimation, PillowWriter
 
-from mnist_generative import RunConfig, load_model, set_seed, tokenize_image, torch_device
+from mnist_generative import (
+    RunConfig,
+    load_model,
+    make_init_sequences,
+    set_seed,
+    tokenize_image,
+    torch_device,
+)
 
 
 def parse_args():
@@ -53,9 +60,7 @@ def output_prefix(args, checkpoint_path):
 
 def make_generation_batch(config, label, num_samples):
     lengths = torch.full((num_samples,), config.fixed_boid_count, dtype=torch.long, device=torch_device)
-    init_tokens = (
-        2 * torch.rand((num_samples, config.fixed_boid_count, 2), device=torch_device) - 1
-    ) * config.habitat_scaling_factor
+    init_tokens = make_init_sequences(config, num_samples)
     labels = torch.full((num_samples,), label, dtype=torch.long, device=torch_device)
     return init_tokens, lengths, labels
 

@@ -32,6 +32,12 @@ class RunConfig:
     lr: float = 0.003
     epoch_num: int = 80
     fixed_boid_count: int = 256
+    init_mode: str = "grid"
+    init_jitter: float = 0.0
+    use_label_init: bool = True
+    label_init_scale: float = 1.0
+    z_reg_weight: float = 0.0
+    out_of_bounds_reg_weight: float = 0.0
     progress_every: int = 200
     checkpoint_path: str = "model_generative.pth"
     vis_samples: int = 10
@@ -68,6 +74,12 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=0.003)
     parser.add_argument("--epochs", type=int, default=80)
     parser.add_argument("--fixed-boid-count", type=int, default=256)
+    parser.add_argument("--init-mode", choices=("random", "grid"), default="grid")
+    parser.add_argument("--init-jitter", type=float, default=0.0)
+    parser.add_argument("--use-label-init", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--label-init-scale", type=float, default=1.0)
+    parser.add_argument("--z-reg-weight", type=float, default=0.0)
+    parser.add_argument("--out-of-bounds-reg-weight", type=float, default=0.0)
     parser.add_argument("--progress-every", type=int, default=200)
     parser.add_argument("--checkpoint-path", default="model_generative.pth")
     parser.add_argument("--vis-samples", type=int, default=10)
@@ -91,6 +103,12 @@ def parse_args():
         lr=args.lr,
         epoch_num=args.epochs,
         fixed_boid_count=args.fixed_boid_count,
+        init_mode=args.init_mode,
+        init_jitter=args.init_jitter,
+        use_label_init=args.use_label_init,
+        label_init_scale=args.label_init_scale,
+        z_reg_weight=args.z_reg_weight,
+        out_of_bounds_reg_weight=args.out_of_bounds_reg_weight,
         progress_every=args.progress_every,
         checkpoint_path=args.checkpoint_path,
         vis_samples=args.vis_samples,
@@ -115,6 +133,12 @@ def validate_config(config):
         raise ValueError("dim_feedforward must be at least 1.")
     if config.fixed_boid_count < 1:
         raise ValueError("fixed_boid_count must be at least 1.")
+    if config.init_jitter < 0:
+        raise ValueError("init_jitter must be non-negative.")
+    if config.label_init_scale < 0:
+        raise ValueError("label_init_scale must be non-negative.")
+    if config.z_reg_weight < 0 or config.out_of_bounds_reg_weight < 0:
+        raise ValueError("regularization weights must be non-negative.")
     if config.train_batch_size < 1 or config.eval_batch_size < 1:
         raise ValueError("batch sizes must be at least 1.")
     if config.epoch_num < 0:
@@ -202,11 +226,34 @@ def collate_fn(batch, config):
     target_sequences, labels = zip(*batch)
     lengths = torch.full((len(target_sequences),), config.fixed_boid_count, dtype=torch.long, device=torch_device)
     padded_targets = pad_sequence(target_sequences, batch_first=True).to(torch_device)
-    init_sequences = (
-        2 * torch.rand((len(target_sequences), config.fixed_boid_count, 2), device=torch_device) - 1
-    ) * config.habitat_scaling_factor
+    init_sequences = make_init_sequences(config, len(target_sequences))
     labels = torch.tensor(labels, dtype=torch.long, device=torch_device)
     return init_sequences, lengths, padded_targets, labels
+
+
+def base_grid_tokens(count, habitat_scaling_factor):
+    side = int(np.ceil(np.sqrt(count)))
+    coords = torch.linspace(-habitat_scaling_factor, habitat_scaling_factor, side, device=torch_device)
+    grid_y, grid_x = torch.meshgrid(coords, coords, indexing="ij")
+    grid = torch.stack([grid_y.reshape(-1), grid_x.reshape(-1)], dim=1)
+    return grid[:count]
+
+
+def make_init_sequences(config, batch_size):
+    if config.init_mode == "random":
+        init_sequences = (
+            2 * torch.rand((batch_size, config.fixed_boid_count, 2), device=torch_device) - 1
+        ) * config.habitat_scaling_factor
+    elif config.init_mode == "grid":
+        base = base_grid_tokens(config.fixed_boid_count, config.habitat_scaling_factor)
+        init_sequences = base.unsqueeze(0).repeat(batch_size, 1, 1)
+    else:
+        raise ValueError(f"Unsupported init_mode: {config.init_mode}")
+
+    if config.init_jitter > 0:
+        init_sequences = init_sequences + config.init_jitter * torch.randn_like(init_sequences)
+
+    return init_sequences.clamp(-config.habitat_scaling_factor, config.habitat_scaling_factor)
 
 
 def create_dataloader(config, train=True, batch_size=None, shuffle=True):
@@ -292,12 +339,21 @@ class MNISTBoidGenerator(nn.Module):
         scaling_factor=0.1,
         dim_feedforward=512,
         habitat_scaling_factor=10.0,
+        fixed_boid_count=256,
+        use_label_init=False,
+        label_init_scale=1.0,
     ):
         super().__init__()
         self.d_model = d_model
         self.recurrent = recurrent
         self.scaling_factor = scaling_factor
         self.habitat_scaling_factor = habitat_scaling_factor
+        self.fixed_boid_count = fixed_boid_count
+        self.use_label_init = use_label_init
+        self.label_init_scale = label_init_scale
+        if use_label_init:
+            self.label_init = nn.Embedding(8, fixed_boid_count * 2)
+            nn.init.zeros_(self.label_init.weight)
         self.encoder_layers = nn.ModuleList(
             [
                 ScaledTransformerEncoderLayer(
@@ -323,6 +379,12 @@ class MNISTBoidGenerator(nn.Module):
         )
 
     def forward(self, tokens, lengths, labels, return_all_layers=False):
+        if self.use_label_init:
+            label_init = self.label_init(labels).view(-1, self.fixed_boid_count, 2)
+            label_init = self.habitat_scaling_factor * torch.tanh(label_init)
+            tokens = tokens + self.label_init_scale * label_init
+            tokens = tokens.clamp(-self.habitat_scaling_factor, self.habitat_scaling_factor)
+
         tokens = torch.cat(
             [tokens, torch.zeros(tokens.shape[0], tokens.shape[1], self.d_model - 2, device=tokens.device)],
             dim=2,
@@ -382,12 +444,19 @@ def build_model(config):
         scaling_factor=config.residual_scaling_factor,
         dim_feedforward=config.dim_feedforward,
         habitat_scaling_factor=config.habitat_scaling_factor,
+        fixed_boid_count=config.fixed_boid_count,
+        use_label_init=config.use_label_init,
+        label_init_scale=config.label_init_scale,
     ).to(torch_device)
 
 
 def model_suffix(config):
     recurrent_str = "recurrent" if config.recurrent else "nonrecurrent"
-    return f"gen_d{config.d_model}_b{config.num_layers}_ffwd{config.dim_feedforward}_{recurrent_str}"
+    label_init_str = "linit" if config.use_label_init else "nolinit"
+    return (
+        f"gen_d{config.d_model}_b{config.num_layers}_ffwd{config.dim_feedforward}_"
+        f"{config.init_mode}_{label_init_str}_{recurrent_str}"
+    )
 
 
 def save_checkpoint(model, config):
@@ -456,6 +525,7 @@ def train_model(config):
 
     criterion = ChamferLoss()
     optimizer = optim.Adam(model.parameters(), lr=config.lr)
+    best_eval_loss = float("inf")
 
     for epoch in range(config.epoch_num):
         model.train()
@@ -476,6 +546,11 @@ def train_model(config):
             optimizer.zero_grad()
             output = model(init_tokens, lengths, labels)
             loss = criterion(output, target_tokens, lengths)
+            if config.z_reg_weight > 0 and output.shape[-1] > 2:
+                loss = loss + config.z_reg_weight * output[..., 2:].pow(2).mean()
+            if config.out_of_bounds_reg_weight > 0:
+                excess = (output[..., :2].abs() - config.habitat_scaling_factor).clamp_min(0)
+                loss = loss + config.out_of_bounds_reg_weight * excess.pow(2).mean()
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
@@ -483,9 +558,18 @@ def train_model(config):
         epoch_loss = total_loss / max(len(train_dataloader), 1)
         print(f"Epoch {epoch + 1}, Loss: {epoch_loss:.4f}")
         sys.stdout.flush()
-        evaluate_model(model, test_dataloader, criterion)
+        eval_loss = evaluate_model(model, test_dataloader, criterion)
+        if eval_loss < best_eval_loss:
+            best_eval_loss = eval_loss
+            save_checkpoint(model, config)
+            print(f"Saved new best checkpoint with Eval Chamfer: {best_eval_loss:.4f}")
+            sys.stdout.flush()
 
-    save_checkpoint(model, config)
+    if config.epoch_num == 0:
+        save_checkpoint(model, config)
+    else:
+        print(f"Best Eval Chamfer: {best_eval_loss:.4f}")
+        sys.stdout.flush()
     return model, test_dataloader
 
 
