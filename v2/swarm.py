@@ -52,16 +52,40 @@ class Block(nn.Module):
         nn.init.zeros_(self.ffn[-1].weight)
         nn.init.zeros_(self.ffn[-1].bias)
 
-    def forward(self, x, update_mask=None):
+    def forward(self, x, update_mask=None, return_attn=False):
         b, n, d = x.shape
         qkv = self.qkv(x).view(b, n, 3, self.nhead, d).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # each (b, h, n, d)
-        msg = F.scaled_dot_product_attention(q, k, v, scale=1.0).mean(dim=1)
+        if return_attn:
+            attn = torch.softmax(q @ k.transpose(-1, -2), dim=-1)  # (b, h, n, n): row i = what boid i looks at
+            msg = (attn @ v).mean(dim=1)
+        else:
+            msg = F.scaled_dot_product_attention(q, k, v, scale=1.0).mean(dim=1)
         flock = self.step_scale * self.out(msg)
         x = x + (flock if update_mask is None else flock * update_mask)
         solo = self.step_scale * self.ffn(x)
         x = x + (solo if update_mask is None else solo * update_mask)
-        return x
+        return (x, attn) if return_attn else x
+
+
+    def moves(self, x, update_mask=None):
+        """The two components of one timestep: the flocking move and the alone-time move that follows it."""
+        b, n, d = x.shape
+        qkv = self.qkv(x).view(b, n, 3, self.nhead, d).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]
+        msg = F.scaled_dot_product_attention(q, k, v, scale=1.0).mean(dim=1)
+        flock = self.step_scale * self.out(msg)
+        if update_mask is not None:
+            flock = flock * update_mask
+        solo = self.step_scale * self.ffn(x + flock)
+        if update_mask is not None:
+            solo = solo * update_mask
+        return flock, solo
+
+    def field(self, x, update_mask=None):
+        """The alone-time vector field alone: the FFN's residual step evaluated at arbitrary states x (..., d)."""
+        solo = self.step_scale * self.ffn(x)
+        return solo if update_mask is None else solo * update_mask
 
 
 class Swarm(nn.Module):
@@ -108,13 +132,31 @@ class Swarm(nn.Module):
         hidden = hidden.unsqueeze(1).expand(-1, self.n_boids, -1)
         return torch.cat([xy, hidden], dim=-1)
 
-    def forward(self, labels, style, return_traj=False):
+    def decompose(self, labels, style):
+        """Run the swarm, returning the trajectory and, per step, the flocking and alone-time moves."""
         x = self.initial_state(labels, style)
-        traj = [x]
+        traj, flocks, solos = [x], [], []
         for _ in range(self.steps):
-            x = self.block(x, self.update_mask)
+            flock, solo = self.block.moves(x, self.update_mask)
+            x = x + flock + solo
+            traj.append(x)
+            flocks.append(flock)
+            solos.append(solo)
+        return traj, flocks, solos
+
+    def forward(self, labels, style, return_traj=False, return_attn=False):
+        x = self.initial_state(labels, style)
+        traj, attns = [x], []
+        for _ in range(self.steps):
+            if return_attn:
+                x, attn = self.block(x, self.update_mask, return_attn=True)
+                attns.append(attn)
+            else:
+                x = self.block(x, self.update_mask)
             if return_traj:
                 traj.append(x)
+        if return_attn:
+            return x, traj, attns
         return (x, traj) if return_traj else x
 
 
