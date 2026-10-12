@@ -136,9 +136,10 @@ def main():
     parser.add_argument("--out", default=None, help="output directory (default: checkpoint's directory)")
     parser.add_argument("--gif-classes", type=int, nargs="*", default=[0, 3, 7])
     parser.add_argument("--n-boids", type=int, default=None, help="render with this many boids (default: as trained)")
+    parser.add_argument("--device", default=None, help="cpu, cuda or mps (default: best available)")
     args = parser.parse_args()
 
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device or ("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"))
     swarm, encoder, cfg = load_checkpoint(args.checkpoint, device)
     if args.n_boids:
         swarm.resize(args.n_boids)

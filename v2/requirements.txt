@@ -1,0 +1,6 @@
+# Versions the figures were made with; anything recent should do.
+torch>=2.6
+torchvision>=0.21
+numpy>=2.0
+matplotlib>=3.9
+pillow>=10

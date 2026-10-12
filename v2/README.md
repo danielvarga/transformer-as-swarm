@@ -93,6 +93,11 @@ python vis_ffn.py models/final.pt --label 7        # what the feed-forward block
 `models/final.pt` is the trained model from the run described below (swarm + encoder weights
 and config; `train.load_checkpoint` rebuilds it). `runs/` is gitignored.
 
+To reproduce a figure on another machine: `pip install -r requirements.txt`, then e.g.
+`python vis_ffn.py models/final.pt --label 7 --out figures_repro`. The vis scripts need no data
+and no GPU (`--device cpu` works; MNIST is only downloaded by `train.py`, and by `vis.py` for
+the reconstruction panel). Everything they draw is deterministic given the checkpoint.
+
 The dynamics are permutation-equivariant and close to mean-field, so a swarm trained with 64
 boids can be run with 256: `python vis.py models/final.pt --n-boids 256`. On an M1 the cost
 is purely the B·H·N² attention tensor, so training small and rendering big is the way to go.
