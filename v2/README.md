@@ -102,6 +102,14 @@ The dynamics are permutation-equivariant and close to mean-field, so a swarm tra
 boids can be run with 256: `python vis.py models/final.pt --n-boids 256`. On an M1 the cost
 is purely the B·H·N² attention tensor, so training small and rendering big is the way to go.
 
+## In the browser
+
+`web/` runs the trained swarm in plain JavaScript, with no ML library: pick a digit, drag the style
+latent, scrub through the 16 steps, or run past them. `web/export_weights.py` writes the swarm
+(not the encoder) to `web/weights.js`; `node web/check.js` compares the port against PyTorch
+(max error ~5e-4 after 16 steps, float32 vs float64). Serve it with
+`python3 -m http.server --directory web` and open http://localhost:8000.
+
 ## What the first round taught (64 boids, 3 epochs each, `compare.py`)
 
 | run | test MMD | label sensitivity | note |

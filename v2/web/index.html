@@ -1,0 +1,611 @@
+<meta charset="utf-8">
+<title>Digit Swarm</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;800&family=Chivo+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an instrument — the square stage on the left, a narrow control column on the right; stacks on phones. */
+:root {
+  --paper: #e8ecef;
+  --panel: #f5f7f8;
+  --stage: #fbfcfc;
+  --ink: #17202a;
+  --muted: #5d6874;
+  --line: #c9d1d8;
+  --accent: #2c43c4;
+  --accent-ink: #ffffff;
+  --neg: #c2410c;
+  --pos: #0f766e;
+  --dot-gain: 0.78;
+  --font-display: "Chivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Chivo", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "Chivo Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #11151a; --panel: #181d24; --stage: #0a0d11; --ink: #e2e7ec; --muted: #8b96a2;
+    --line: #2a323c; --accent: #8191ff; --accent-ink: #0b0e14; --neg: #fb923c; --pos: #2dd4bf;
+    --dot-gain: 1; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #11151a; --panel: #181d24; --stage: #0a0d11; --ink: #e2e7ec; --muted: #8b96a2;
+  --line: #2a323c; --accent: #8191ff; --accent-ink: #0b0e14; --neg: #fb923c; --pos: #2dd4bf;
+  --dot-gain: 1; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+  text-wrap: balance;
+}
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.lede b { color: var(--ink); font-weight: 600; }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+@media (max-width: 880px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+.stage-col { display: grid; gap: 10px; min-width: 0; justify-items: center; }
+.stage {
+  position: relative;
+  width: min(100%, calc(100vh - 170px));
+  min-width: min(100%, 320px);
+  aspect-ratio: 1;
+  max-width: 100%;
+  background: var(--stage);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage .tag {
+  position: absolute; top: 10px; left: 12px;
+  font-family: var(--font-data); font-size: 0.75rem; color: var(--muted);
+  pointer-events: none;
+}
+.stage .tag.right { left: auto; right: 12px; text-align: right; }
+.stage .busy { color: var(--accent); }
+
+.timeline { width: min(100%, calc(100vh - 170px)); min-width: min(100%, 320px); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.timeline output { font-family: var(--font-data); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9ch; text-align: right; }
+.track { display: grid; gap: 2px; }
+.ticks { position: relative; height: 14px; font-family: var(--font-data); font-size: 0.65rem; color: var(--muted); }
+.ticks span { position: absolute; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.ticks span.trained { color: var(--accent); }
+
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+
+.panel { display: grid; gap: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 16px; min-width: 0; }
+.group { display: grid; gap: 8px; }
+.label {
+  font-family: var(--font-data); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  display: flex; justify-content: space-between; gap: 8px;
+}
+.label span:last-child { text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+
+.keypad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.keypad button {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.45rem; line-height: 1;
+  padding: 10px 0; border-radius: 3px;
+  border: 1px solid var(--line); background: var(--stage); color: var(--ink);
+  cursor: pointer;
+}
+.keypad button:hover { border-color: var(--muted); }
+.keypad button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.pad-wrap { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; }
+#pad { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border: 1px solid var(--line); border-radius: 3px; background: var(--stage); cursor: crosshair; touch-action: none; }
+
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn {
+  font: 600 0.82rem var(--font-body);
+  padding: 7px 12px; border-radius: 3px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--stage); color: var(--ink);
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); min-width: 5.5em; }
+
+.seg { justify-self: start; display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.seg button {
+  font: 500 0.78rem var(--font-data); padding: 6px 10px; border: 0; border-right: 1px solid var(--line);
+  background: var(--stage); color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.opts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.opts > span { font-size: 0.82rem; color: var(--muted); }
+
+button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.coords { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 28px; border-top: 1px solid var(--line); padding-top: 16px; }
+.coord { display: grid; grid-template-columns: 5.2em minmax(0, 1fr); gap: 2px 12px; align-items: baseline; }
+.coord code { font-family: var(--font-data); font-size: 0.85rem; font-weight: 500; }
+.coord p { margin: 0; color: var(--muted); font-size: 0.86rem; }
+.coord .now { grid-column: 2; font-family: var(--font-data); font-size: 0.75rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.foot { color: var(--muted); font-size: 0.8rem; margin: 0; max-width: 90ch; }
+.foot code { font-family: var(--font-data); font-size: 0.78rem; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Digit Swarm</h1>
+    <p class="lede">One weight-shared transformer block, applied <b>16 times</b> to a flock of points in R<sup>6</sup>. The points start on a sunflower disk and settle into a handwritten digit. It runs live in your browser.</p>
+  </header>
+
+  <main>
+    <div class="stage-col">
+      <div class="stage" id="stage">
+        <canvas id="view" aria-label="The swarm in the picture plane"></canvas>
+        <div class="tag" id="tagLeft">digit 7</div>
+        <div class="tag right" id="tagRight"></div>
+      </div>
+      <div class="timeline">
+        <button class="btn primary" id="play" type="button">Pause</button>
+        <div class="track">
+          <input type="range" id="scrub" min="0" max="16" step="0.01" value="0" aria-label="Step">
+          <div class="ticks" id="ticks"></div>
+        </div>
+        <output id="stepOut">t 0.00 / 16</output>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <div class="label"><span>Class code · c₁ c₂</span><span id="codeOut"></span></div>
+        <div class="keypad" id="keypad"></div>
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Style latent · s₁ s₂</span><span id="styleOut"></span></div>
+        <div class="pad-wrap"><canvas id="pad" tabindex="0" aria-label="Style latent pad. Drag, or use the arrow keys."></canvas></div>
+        <div class="row">
+          <button class="btn" id="random" type="button">Sample style</button>
+          <button class="btn" id="origin" type="button">Centre</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Simulation</span></div>
+        <div class="opts">
+          <span>Boids</span>
+          <div class="seg" id="segN"></div>
+          <span>Steps</span>
+          <div class="seg" id="segSteps"></div>
+          <span>Speed</span>
+          <div class="seg" id="segSpeed"></div>
+          <span>Render</span>
+          <div class="seg" id="segMode"></div>
+          <span>Colour</span>
+          <div class="seg" id="segColor"></div>
+          <span>Trails</span>
+          <div class="seg" id="segTrails"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <section class="coords" aria-label="What the six coordinates are">
+    <div class="coord">
+      <code>x, y</code>
+      <p>The picture plane. Each boid starts at a fixed spot on the disk, and that spot is its identity, so there is no positional encoding. Colours follow the starting position, so the same boid has the same colour in every digit.</p>
+      <span class="now" id="nowXY"></span>
+    </div>
+    <div class="coord">
+      <code>c₁, c₂</code>
+      <p>The prompt: one of ten points on a circle of radius 2, the same for every boid. Pinned, so the block can read it but never write it.</p>
+      <span class="now" id="nowC"></span>
+    </div>
+    <div class="coord">
+      <code>s₁, s₂</code>
+      <p>The style: one global draw from N(0, I), so it does not average out the way per-boid noise would. Free state: the block writes to it, which lets paths cross in the picture plane.</p>
+      <span class="now" id="nowS"></span>
+    </div>
+  </section>
+
+  <p class="foot">Weights from <code>v2/models/final.pt</code>: 69,384 parameters, 2 heads, a 6→256→256→6 GELU feed-forward, trained on 64 boids for 20 epochs. The dynamics are close to mean-field, so other swarm sizes work too. Steps past 16 extrapolate beyond what the model was trained on. Keys: <code>0</code>–<code>9</code> pick a digit, <code>space</code> plays, <code>s</code> samples a style.</p>
+</div>
+
+<script src="weights.js"></script>
+<script src="swarm.js"></script>
+<script>
+(function () {
+  const model = new SwarmModel.Swarm(window.SWARM_WEIGHTS);
+  const D = model.d;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const S = {
+    label: 7, style: [0.6, -0.4], n: 128, steps: 16, speed: 4,
+    mode: "dots", color: "origin", trails: "off",
+    t: 0, playing: !reduceMotion,
+  };
+
+  // ---------- simulation: one step at a time, inside a per-frame time budget ----------
+  let live = null;   // the run being computed
+  let shown = null;  // last completed run, drawn while `live` catches up after a style change
+  let pending = false;
+
+  function newRun() {
+    const x = model.initialState(S.n, S.label, S.style);
+    return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, x, traj: [x.slice()],
+             init: SwarmModel.sunflower(S.n, model.diskRadius) };
+  }
+  const done = (r) => r.traj.length - 1 >= r.steps;
+
+  // hard: digit / size changes restart from t = 0. soft: style changes keep t and the old picture until ready.
+  function restart(hard) {
+    if (hard) {
+      shown = null; live = newRun(); pending = false;
+      S.t = 0; S.playing = !reduceMotion; if (reduceMotion) S.t = S.steps;
+    } else if (!live || done(live)) {
+      if (live) shown = live;
+      live = newRun(); pending = false;
+    } else {
+      pending = true;
+    }
+  }
+
+  function compute() {
+    const t0 = performance.now();
+    while (!done(live) && performance.now() - t0 < 12) {
+      model.step(live.x, live.n);
+      live.traj.push(live.x.slice());
+    }
+    if (done(live)) {
+      if (pending) { shown = live; live = newRun(); pending = false; }
+      else shown = null;
+    }
+  }
+
+  // Which run to draw at time t: the live one if it has the frames we need, otherwise the previous one.
+  function runFor(t) {
+    const need = Math.min(live.steps, Math.floor(t) + 2);
+    if (live.traj.length - 1 >= need || !shown) return live;
+    return shown;
+  }
+
+  // Catmull-Rom through the integer steps, so the motion is smooth between block applications.
+  function stateAt(run, t) {
+    const last = run.traj.length - 1;
+    t = Math.max(0, Math.min(t, last));
+    const i = Math.floor(t), f = t - i;
+    const P = (k) => run.traj[Math.max(0, Math.min(last, k))];
+    const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+    const out = new Float64Array(p1.length);
+    const f2 = f * f, f3 = f2 * f;
+    for (let k = 0; k < out.length; k++) {
+      out[k] = 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * f + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * f2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * f3);
+    }
+    return { x: out, t };
+  }
+
+  // ---------- colour ----------
+  const css = () => getComputedStyle(document.documentElement);
+  let tok = {};
+  function readTokens() {
+    const c = css();
+    for (const k of ["stage", "ink", "muted", "line", "accent", "neg", "pos"]) tok[k] = c.getPropertyValue("--" + k).trim();
+    tok.gain = parseFloat(c.getPropertyValue("--dot-gain")) || 1;
+    tok.inkRGB = hexRGB(tok.ink); tok.negRGB = hexRGB(tok.neg); tok.posRGB = hexRGB(tok.pos); tok.mutedRGB = hexRGB(tok.muted);
+  }
+  function hexRGB(h) {
+    h = h.replace("#", "");
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    const v = parseInt(h, 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  // vis.py's colormap over the initial disk: same boid, same colour, in every figure.
+  function originColor(x0, y0) {
+    const r = (x0 + 1) / 2, g = (y0 + 1) / 2, b = 1 - (0.5 * (r + g)) / 2;
+    const k = 255 * tok.gain;
+    return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(Math.min(1, b) * k)})`;
+  }
+  function divergeColor(v) {
+    const a = Math.max(-1, Math.min(1, v / 2.5));
+    const end = a < 0 ? tok.negRGB : tok.posRGB, m = tok.mutedRGB, w = Math.abs(a);
+    return `rgb(${[0, 1, 2].map((i) => Math.round(m[i] + (end[i] - m[i]) * w)).join(",")})`;
+  }
+
+  // ---------- drawing ----------
+  const view = document.getElementById("view");
+  const vctx = view.getContext("2d");
+  const EXT = 1.12; // the canvas shows [-EXT, EXT]^2; the MNIST frame is [-1, 1]^2
+  let vsize = 0, dpr = 1;
+  function fitView() {
+    const r = view.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    vsize = r.width;
+    view.width = Math.round(r.width * dpr); view.height = Math.round(r.height * dpr);
+  }
+  const px = (x) => ((x + EXT) / (2 * EXT)) * vsize;
+  const py = (y) => ((EXT - y) / (2 * EXT)) * vsize;
+
+  const ink = document.createElement("canvas"); ink.width = ink.height = 28;
+  const ictx = ink.getContext("2d");
+  const inkImg = ictx.createImageData(28, 28);
+
+  function drawView(run, st) {
+    const c = vctx, n = run.n, x = st.x;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, vsize, vsize);
+
+    // MNIST frame with its 28 x 28 pixel grid, and the starting disk.
+    const f0 = px(-1), f1 = px(1), cell = (f1 - f0) / 28;
+    c.strokeStyle = tok.line; c.lineWidth = 1;
+    c.globalAlpha = S.mode === "ink" ? 0.55 : 0.28;
+    c.beginPath();
+    for (let i = 1; i < 28; i++) {
+      const p = Math.round(f0 + i * cell) + 0.5;
+      c.moveTo(p, f0); c.lineTo(p, f1); c.moveTo(f0, p); c.lineTo(f1, p);
+    }
+    c.stroke();
+    c.globalAlpha = 1;
+    c.strokeRect(Math.round(f0) + 0.5, Math.round(f0) + 0.5, Math.round(f1 - f0), Math.round(f1 - f0));
+    c.setLineDash([3, 5]); c.globalAlpha = 0.7;
+    c.beginPath(); c.arc(px(0), py(0), (model.diskRadius / (2 * EXT)) * vsize, 0, 2 * Math.PI); c.stroke();
+    c.setLineDash([]); c.globalAlpha = 1;
+
+    const colorOf = (i) => S.color === "origin" ? originColor(run.init[2 * i], run.init[2 * i + 1]) : divergeColor(x[i * D + 4]);
+
+    if (S.trails === "on" && st.t > 0) {
+      c.lineWidth = 1; c.globalAlpha = 0.35;
+      const upto = Math.floor(st.t);
+      for (let i = 0; i < n; i++) {
+        c.strokeStyle = colorOf(i);
+        c.beginPath();
+        for (let k = 0; k <= upto; k++) {
+          const s = run.traj[k];
+          k === 0 ? c.moveTo(px(s[i * D]), py(s[i * D + 1])) : c.lineTo(px(s[i * D]), py(s[i * D + 1]));
+        }
+        c.lineTo(px(x[i * D]), py(x[i * D + 1]));
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    }
+
+    if (S.mode === "ink") {
+      // What the loss sees: the cloud splatted onto the 28 x 28 grid with a Gaussian of 1 pixel.
+      const sig = 2 / 28, dens = new Float64Array(784), kx = new Float64Array(28), ky = new Float64Array(28);
+      for (let i = 0; i < n; i++) {
+        const bx = x[i * D], by = x[i * D + 1];
+        for (let g = 0; g < 28; g++) {
+          const gc = ((g + 0.5) / 28) * 2 - 1;
+          kx[g] = Math.exp(-0.5 * ((bx - gc) / sig) ** 2);
+          ky[g] = Math.exp(-0.5 * ((by + gc) / sig) ** 2);
+        }
+        for (let r = 0; r < 28; r++) { const a = ky[r]; if (a < 1e-4) continue; for (let q = 0; q < 28; q++) dens[r * 28 + q] += a * kx[q]; }
+      }
+      let mx = 0; for (const v of dens) mx = Math.max(mx, v);
+      const [R, G, B] = tok.inkRGB;
+      for (let p = 0; p < 784; p++) {
+        const a = Math.min(1, (dens[p] / (mx || 1)) * 1.25);
+        inkImg.data[4 * p] = R; inkImg.data[4 * p + 1] = G; inkImg.data[4 * p + 2] = B; inkImg.data[4 * p + 3] = Math.round(255 * a);
+      }
+      ictx.putImageData(inkImg, 0, 0);
+      c.imageSmoothingEnabled = false;
+      c.drawImage(ink, f0, f0, f1 - f0, f1 - f0);
+      return;
+    }
+
+    const rad = Math.max(1.6, Math.min(6, vsize * 0.0105 * Math.sqrt(128 / n)));
+    for (let i = 0; i < n; i++) {
+      c.fillStyle = colorOf(i);
+      c.beginPath(); c.arc(px(x[i * D]), py(x[i * D + 1]), rad, 0, 2 * Math.PI); c.fill();
+    }
+  }
+
+  // ---------- style pad ----------
+  const pad = document.getElementById("pad");
+  const pctx = pad.getContext("2d");
+  const PEXT = 3;
+  let psize = 0;
+  function fitPad() {
+    const r = pad.getBoundingClientRect();
+    psize = r.width;
+    pad.width = Math.round(r.width * dpr); pad.height = Math.round(r.height * dpr);
+  }
+  const sx = (v) => ((v + PEXT) / (2 * PEXT)) * psize;
+  const sy = (v) => ((PEXT - v) / (2 * PEXT)) * psize;
+  function drawPad() {
+    const c = pctx;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, psize, psize);
+    c.strokeStyle = tok.line; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(sx(0), 0); c.lineTo(sx(0), psize); c.moveTo(0, sy(0)); c.lineTo(psize, sy(0)); c.stroke();
+    c.fillStyle = tok.muted; c.font = `500 10px ${css().getPropertyValue("--font-data")}`;
+    for (const k of [1, 2, 3]) {
+      c.globalAlpha = k === 1 ? 0.9 : 0.55;
+      c.setLineDash(k === 1 ? [] : [2, 4]);
+      c.beginPath(); c.arc(sx(0), sy(0), (k / (2 * PEXT)) * psize, 0, 2 * Math.PI); c.stroke();
+      if (k < 3) c.fillText(`${k}σ`, sx(0) + 4, sy(k) + 11);
+    }
+    c.setLineDash([]); c.globalAlpha = 1;
+    c.fillText("s₁", psize - 16, sy(0) - 5);
+    c.fillText("s₂", sx(0) + 5, 12);
+    const x = sx(S.style[0]), y = sy(S.style[1]);
+    c.strokeStyle = tok.accent; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(x - 12, y); c.lineTo(x - 5, y); c.moveTo(x + 5, y); c.lineTo(x + 12, y);
+    c.moveTo(x, y - 12); c.lineTo(x, y - 5); c.moveTo(x, y + 5); c.lineTo(x, y + 12); c.stroke();
+    c.fillStyle = tok.accent; c.beginPath(); c.arc(x, y, 3.5, 0, 2 * Math.PI); c.fill();
+  }
+  function setStyle(a, b) {
+    const cl = (v) => Math.max(-PEXT, Math.min(PEXT, v));
+    S.style = [cl(a), cl(b)];
+    restart(false);
+    updateLabels();
+  }
+  let dragging = false;
+  function padPoint(e) {
+    const r = pad.getBoundingClientRect();
+    setStyle(((e.clientX - r.left) / r.width) * 2 * PEXT - PEXT, PEXT - ((e.clientY - r.top) / r.height) * 2 * PEXT);
+  }
+  pad.addEventListener("pointerdown", (e) => {
+    dragging = true; pad.setPointerCapture(e.pointerId); padPoint(e);
+    if (S.t < S.steps && !S.playing) S.t = S.steps;
+  });
+  pad.addEventListener("pointermove", (e) => { if (dragging) padPoint(e); });
+  pad.addEventListener("pointerup", () => { dragging = false; });
+  pad.addEventListener("pointercancel", () => { dragging = false; });
+  pad.addEventListener("keydown", (e) => {
+    const d = e.shiftKey ? 0.5 : 0.1;
+    const m = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, d], ArrowDown: [0, -d] }[e.key];
+    if (m) { e.preventDefault(); setStyle(S.style[0] + m[0], S.style[1] + m[1]); }
+  });
+
+  function gauss() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  document.getElementById("random").addEventListener("click", sampleStyle);
+  document.getElementById("origin").addEventListener("click", () => setStyle(0, 0));
+  function sampleStyle() { setStyle(gauss(), gauss()); }
+
+  // ---------- controls ----------
+  const keypad = document.getElementById("keypad");
+  for (let k = 0; k < 10; k++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = k; b.dataset.k = k;
+    b.setAttribute("aria-label", `Digit ${k}`);
+    b.addEventListener("click", () => setLabel(k));
+    keypad.appendChild(b);
+  }
+  function setLabel(k) { S.label = k; restart(true); updateLabels(); }
+
+  function segmented(id, options, key, onChange) {
+    const el = document.getElementById(id);
+    for (const [val, text] of options) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = text; b.dataset.v = val;
+      b.addEventListener("click", () => { S[key] = typeof S[key] === "number" ? +val : val; sync(); onChange && onChange(); });
+      el.appendChild(b);
+    }
+    const sync = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v == S[key])));
+    sync();
+  }
+  segmented("segN", [[64, "64"], [128, "128"], [256, "256"], [512, "512"]], "n", () => restart(true));
+  segmented("segSteps", [[16, "16"], [32, "32"], [64, "64"]], "steps", setSteps);
+  segmented("segSpeed", [[2, "slow"], [4, "normal"], [10, "fast"]], "speed");
+  segmented("segMode", [["dots", "boids"], ["ink", "28×28"]], "mode");
+  segmented("segColor", [["origin", "start"], ["style", "s₁ now"]], "color");
+  segmented("segTrails", [["off", "off"], ["on", "on"]], "trails");
+
+  // More steps extend the current run instead of recomputing it.
+  function setSteps() {
+    for (const r of [live, shown]) {
+      if (!r) continue;
+      r.steps = S.steps;
+      if (r.traj.length - 1 > S.steps) { r.traj.length = S.steps + 1; r.x = r.traj[S.steps].slice(); }
+    }
+    if (shown && !done(shown)) shown = null;
+    S.t = Math.min(S.t, S.steps);
+    if (S.t < S.steps && !reduceMotion) S.playing = true;
+    buildTicks();
+  }
+
+  const scrub = document.getElementById("scrub");
+  scrub.addEventListener("input", () => { S.t = +scrub.value; S.playing = false; });
+  const playBtn = document.getElementById("play");
+  playBtn.addEventListener("click", togglePlay);
+  function togglePlay() {
+    if (S.playing) S.playing = false;
+    else { if (S.t >= S.steps - 1e-6) S.t = 0; S.playing = true; }
+  }
+
+  function buildTicks() {
+    const el = document.getElementById("ticks");
+    el.innerHTML = "";
+    scrub.max = S.steps;
+    const every = S.steps <= 16 ? 2 : S.steps <= 32 ? 4 : 8;
+    for (let k = 0; k <= S.steps; k += every) {
+      const s = document.createElement("span");
+      s.textContent = k;
+      s.style.left = `calc(${(k / S.steps) * 100}% + ${(0.5 - k / S.steps) * 14}px)`; // follow the thumb's travel
+      if (k === 16) s.className = "trained";
+      el.appendChild(s);
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key)) setLabel(+e.key);
+    else if (e.key === " " && e.target === document.body) { e.preventDefault(); togglePlay(); }
+    else if (e.key === "s" || e.key === "S") sampleStyle();
+  });
+
+  // ---------- labels ----------
+  const $ = (id) => document.getElementById(id);
+  const f2 = (v) => (v < 0 ? "−" : " ") + Math.abs(v).toFixed(2);
+  function updateLabels() {
+    keypad.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.k === S.label)));
+    const code = model.codes[S.label];
+    $("codeOut").textContent = `(${f2(code[0])}, ${f2(code[1])})`;
+    $("styleOut").textContent = `(${f2(S.style[0])}, ${f2(S.style[1])})`;
+    $("tagLeft").textContent = `digit ${S.label}`;
+  }
+
+  function updateReadouts(run, st) {
+    const n = run.n, x = st.x;
+    const mean = new Float64Array(D), sd = new Float64Array(D);
+    for (let i = 0; i < n; i++) for (let j = 0; j < D; j++) mean[j] += x[i * D + j] / n;
+    for (let i = 0; i < n; i++) for (let j = 0; j < D; j++) sd[j] += (x[i * D + j] - mean[j]) ** 2 / n;
+    const s = (j) => Math.sqrt(sd[j]).toFixed(2);
+    $("nowXY").textContent = `now: centre (${f2(mean[0])}, ${f2(mean[1])}), spread ${s(0)} × ${s(1)}`;
+    $("nowC").textContent = `now: (${f2(mean[2])}, ${f2(mean[3])}) for every boid`;
+    $("nowS").textContent = `now: mean (${f2(mean[4])}, ${f2(mean[5])}), spread ${s(4)}, ${s(5)}`;
+    $("stepOut").textContent = `t ${st.t.toFixed(2).padStart(5, " ")} / ${S.steps}`;
+    const lag = S.t > run.traj.length - 1 + 1e-6 || run !== live;
+    $("tagRight").innerHTML = `${n} boids` + (lag ? `<br><span class="busy">computing step ${live.traj.length - 1}</span>` : "");
+  }
+
+  // ---------- loop ----------
+  let last = performance.now(), padDirty = true;
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    compute();
+    if (S.playing) {
+      S.t = Math.min(S.steps, S.t + dt * S.speed);
+      if (S.t >= S.steps) S.playing = false;
+    }
+    playBtn.textContent = S.playing ? "Pause" : S.t >= S.steps - 1e-6 ? "Replay" : "Play";
+    if (document.activeElement !== scrub) scrub.value = S.t;
+    const run = runFor(S.t);
+    const st = stateAt(run, S.t);
+    drawView(run, st);
+    drawPad();
+    updateReadouts(run, st);
+    requestAnimationFrame(frame);
+  }
+
+  function relayout() { fitView(); fitPad(); }
+  new ResizeObserver(relayout).observe(document.getElementById("stage"));
+  new ResizeObserver(relayout).observe(pad);
+  const retheme = () => readTokens();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  readTokens();
+  buildTicks();
+  updateLabels();
+  restart(true);
+  relayout();
+  requestAnimationFrame(frame);
+})();
+</script>
