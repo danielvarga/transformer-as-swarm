@@ -67,6 +67,27 @@ def evaluate(swarm, encoder, images, labels, cfg, batch_size=256):
     return recon_total / n, kl_total / n
 
 
+@torch.no_grad()
+def evaluate_hold(swarm, encoder, images, labels, cfg, horizons=(32, 64, 128), batch_size=256):
+    """Keep running the block past the trained horizon: MMD and fraction of boids in frame at each horizon."""
+    swarm.eval()
+    encoder.eval()
+    mmd = {h: 0.0 for h in horizons}
+    inside = {h: 0.0 for h in horizons}
+    n = 0
+    for i in range(0, images.shape[0], batch_size):
+        img, lab = images[i : i + batch_size], labels[i : i + batch_size]
+        mu, _ = encoder(img)
+        x = swarm(lab, mu)
+        for t in range(swarm.steps + 1, max(horizons) + 1):
+            x = swarm.block(x, swarm.update_mask)
+            if t in mmd:
+                mmd[t] += splat_mmd(x[..., :2], img, cfg["sigmas"]).item() * img.shape[0]
+                inside[t] += (x[..., :2].abs() <= 1).all(dim=-1).float().mean().item() * img.shape[0]
+        n += img.shape[0]
+    return {h: (mmd[h] / n, inside[h] / n) for h in horizons}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", default="runs/base")
@@ -93,8 +114,17 @@ def main():
     parser.add_argument("--max-test", type=int, default=2000)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--init", default=None, help="fine-tune from this checkpoint; its architecture overrides the flags")
+    parser.add_argument("--hold-steps", type=int, default=0, help="extra steps run past --steps during training, to teach the swarm to stay put")
+    parser.add_argument("--hold-noise", type=float, default=0.02, help="jitter added to the state before the hold steps, so the digit is attracting")
+    parser.add_argument("--hold-weight", type=float, default=1.0, help="weight of the MMD at the end of the hold")
+    parser.add_argument("--still-weight", type=float, default=1.0, help="weight of the per-step movement during the hold, in units of step_scale^2")
     args = parser.parse_args()
     cfg = vars(args)
+    if args.init:
+        arch = torch.load(args.init, map_location="cpu", weights_only=False)["cfg"]
+        for k in ("n_boids", "d_style", "nhead", "hidden", "ffn_layers", "steps", "step_scale", "code_radius", "pin_class"):
+            cfg[k] = arch[k]
 
     torch.manual_seed(args.seed)
     device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
@@ -109,6 +139,11 @@ def main():
     test_img, test_lab = test_img[: args.max_test], test_lab[: args.max_test]
 
     swarm, encoder = build(cfg, device)
+    if args.init:
+        init = torch.load(args.init, map_location=device, weights_only=False)
+        swarm.load_state_dict(init["swarm"])
+        encoder.load_state_dict(init["encoder"])
+        print(f"fine-tuning from {args.init}")
     params = list(swarm.parameters()) + list(encoder.parameters())
     print(f"device {device}, swarm params {sum(p.numel() for p in swarm.parameters()):,}, encoder params {sum(p.numel() for p in encoder.parameters()):,}")
     opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=1e-4)
@@ -134,7 +169,8 @@ def main():
 
             mu, logvar = encoder(img)
             style = mu + torch.randn_like(mu) * torch.exp(0.5 * logvar)
-            xy = swarm(lab, style)[..., :2]
+            x = swarm(lab, style)
+            xy = x[..., :2]
             recon = 0.0
             if args.mmd_weight:
                 recon = recon + args.mmd_weight * splat_mmd(xy, img, args.sigmas)
@@ -143,6 +179,17 @@ def main():
             kl = kl_to_prior(mu, logvar)
             frame = out_of_frame_penalty(xy)
             loss = recon + beta * kl + args.frame_weight * frame
+            hold = still = torch.zeros((), device=device)
+            if args.hold_steps:
+                # Past the trained horizon the digit should be a resting point, and an attracting one.
+                h = x + args.hold_noise * torch.randn_like(x) * swarm.update_mask
+                for _ in range(args.hold_steps):
+                    h_next = swarm.block(h, swarm.update_mask)
+                    still = still + (h_next - h).pow(2).sum(dim=-1).mean() / cfg["step_scale"] ** 2
+                    h = h_next
+                still = still / args.hold_steps
+                hold = splat_mmd(h[..., :2], img, args.sigmas)
+                loss = loss + args.hold_weight * hold + args.still_weight * still + args.frame_weight * out_of_frame_penalty(h[..., :2])
 
             opt.zero_grad(set_to_none=True)
             loss.backward()
@@ -153,12 +200,14 @@ def main():
             if step % args.log_every == 0:
                 print(
                     f"epoch {epoch} step {i}/{steps_per_epoch} recon {recon.item():.4f} kl {kl.item():.3f} "
-                    f"frame {frame.item():.5f} beta {beta:.4f} lr {sched.get_last_lr()[0]:.2e} "
+                    f"frame {frame.item():.5f} hold {hold.item():.4f} still {still.item():.5f} beta {beta:.4f} lr {sched.get_last_lr()[0]:.2e} "
                     f"{(time.time() - t0) / (i + 1):.3f}s/it",
                     flush=True,
                 )
         test_recon, test_kl = evaluate(swarm, encoder, test_img, test_lab, cfg)
         print(f"=== epoch {epoch} done in {time.time() - t0:.0f}s: test recon {test_recon:.4f} test kl {test_kl:.3f}", flush=True)
+        hold_stats = evaluate_hold(swarm, encoder, test_img[:500], test_lab[:500], cfg)
+        print("    past step 16: " + ", ".join(f"t={h} mmd {m:.4f} in-frame {f:.0%}" for h, (m, f) in hold_stats.items()), flush=True)
         save_checkpoint(run / "last.pt", swarm, encoder, cfg, epoch)
         if test_recon < best:
             best = test_recon

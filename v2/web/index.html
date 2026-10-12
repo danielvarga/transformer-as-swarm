@@ -100,18 +100,9 @@ input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
 }
 .label span:last-child { text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 
-.keypad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.keypad button {
-  font-family: var(--font-display); font-weight: 800; font-size: 1.45rem; line-height: 1;
-  padding: 10px 0; border-radius: 3px;
-  border: 1px solid var(--line); background: var(--stage); color: var(--ink);
-  cursor: pointer;
-}
-.keypad button:hover { border-color: var(--muted); }
-.keypad button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
 .pad-wrap { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; }
-#pad { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border: 1px solid var(--line); border-radius: 3px; background: var(--stage); cursor: crosshair; touch-action: none; }
+.xy-pad { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border: 1px solid var(--line); border-radius: 3px; background: var(--stage); cursor: crosshair; touch-action: none; }
 
 .row { display: flex; flex-wrap: wrap; gap: 6px; }
 .btn {
@@ -130,9 +121,12 @@ input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
 .opts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.jit { display: flex; align-items: center; gap: 10px; }
+.jit input { flex: 1; min-width: 0; }
+.note { margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
 .opts > span { font-size: 0.82rem; color: var(--muted); }
 
-button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .coords { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 28px; border-top: 1px solid var(--line); padding-top: 16px; }
 .coord { display: grid; grid-template-columns: 5.2em minmax(0, 1fr); gap: 2px 12px; align-items: baseline; }
@@ -168,16 +162,30 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
 
     <aside class="panel">
       <div class="group">
+        <div class="label"><span>Model</span></div>
+        <div class="seg" id="segModel"></div>
+        <p class="note" id="modelNote"></p>
+      </div>
+
+      <div class="group">
         <div class="label"><span>Class code · c₁ c₂</span><span id="codeOut"></span></div>
-        <div class="keypad" id="keypad"></div>
+        <div class="pad-wrap"><canvas id="codePad" class="xy-pad" tabindex="0" aria-label="Class code pad. Click a digit, drag between digits, or use the arrow keys."></canvas></div>
       </div>
 
       <div class="group">
         <div class="label"><span>Style latent · s₁ s₂</span><span id="styleOut"></span></div>
-        <div class="pad-wrap"><canvas id="pad" tabindex="0" aria-label="Style latent pad. Drag, or use the arrow keys."></canvas></div>
+        <div class="pad-wrap"><canvas id="pad" class="xy-pad" tabindex="0" aria-label="Style latent pad. Drag, or use the arrow keys."></canvas></div>
         <div class="row">
           <button class="btn" id="random" type="button">Sample style</button>
           <button class="btn" id="origin" type="button">Centre</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="label"><span>Start jitter · σ</span><span id="jitterOut"></span></div>
+        <div class="jit">
+          <input type="range" id="jitter" min="0" max="0.3" step="0.005" value="0" aria-label="Start jitter">
+          <button class="btn" id="reroll" type="button">Reroll</button>
         </div>
       </div>
 
@@ -219,18 +227,23 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
     </div>
   </section>
 
-  <p class="foot">Weights from <code>v2/models/final.pt</code>: 69,384 parameters, 2 heads, a 6→256→256→6 GELU feed-forward, trained on 64 boids for 20 epochs. The dynamics are close to mean-field, so other swarm sizes work too. Steps past 16 extrapolate beyond what the model was trained on. Keys: <code>0</code>–<code>9</code> pick a digit, <code>space</code> plays, <code>s</code> samples a style.</p>
+  <p class="foot">Both models have 69,384 parameters: 2 heads and a 6→256→256→6 GELU feed-forward, trained on 64 boids. The dynamics are close to mean-field, so other swarm sizes work too. Steps past 16 extrapolate beyond what the model was trained on. Keys: <code>0</code>–<code>9</code> pick a digit, <code>space</code> plays, <code>s</code> samples a style.</p>
 </div>
 
-<script src="weights.js"></script>
+<script src="models/original.js"></script>
+<script src="models/stable.js"></script>
 <script src="swarm.js"></script>
 <script>
 (function () {
-  const model = new SwarmModel.Swarm(window.SWARM_WEIGHTS);
+  const MODELS = window.SWARM_MODELS;
+  const built = {};
+  const load = (name) => (built[name] ||= new SwarmModel.Swarm(MODELS.find((m) => m.name === name)));
+  let model = load(MODELS[MODELS.length - 1].name);
   const D = model.d;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const S = {
+    model: MODELS[MODELS.length - 1].name, jitter: 0, code: [0, 0],
     label: 7, style: [0.6, -0.4], n: 128, steps: 16, speed: 4,
     mode: "dots", color: "origin", trails: "off",
     t: 0, playing: !reduceMotion,
@@ -243,8 +256,20 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
 
   function newRun() {
     const x = model.initialState(S.n, S.label, S.style);
-    return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, x, traj: [x.slice()],
-             init: SwarmModel.sunflower(S.n, model.diskRadius) };
+    for (let i = 0; i < S.n; i++) { x[i * D + 2] = S.code[0]; x[i * D + 3] = S.code[1]; }
+    // Start jitter: a fixed noise pattern per swarm size, scaled by the slider, so sliding is smooth.
+    const eps = noiseFor(S.n), init = new Float64Array(2 * S.n);
+    for (let i = 0; i < S.n; i++) {
+      x[i * D] += S.jitter * eps[2 * i];
+      x[i * D + 1] += S.jitter * eps[2 * i + 1];
+      init[2 * i] = x[i * D]; init[2 * i + 1] = x[i * D + 1];
+    }
+    return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, x, traj: [x.slice()], init };
+  }
+  let noise = {};
+  function noiseFor(n) {
+    if (!noise[n]) noise[n] = Float64Array.from({ length: 2 * n }, gauss);
+    return noise[n];
   }
   const done = (r) => r.traj.length - 1 >= r.steps;
 
@@ -410,63 +435,134 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
     }
   }
 
-  // ---------- style pad ----------
-  const pad = document.getElementById("pad");
-  const pctx = pad.getContext("2d");
-  const PEXT = 3;
-  let psize = 0;
-  function fitPad() {
-    const r = pad.getBoundingClientRect();
-    psize = r.width;
-    pad.width = Math.round(r.width * dpr); pad.height = Math.round(r.height * dpr);
+  // ---------- 2-D pads: the class-code plane and the style plane ----------
+  function makePad(canvas, ext, draw, onSet) {
+    const ctx = canvas.getContext("2d");
+    const p = { canvas, ctx, ext, size: 0 };
+    p.fit = () => {
+      const r = canvas.getBoundingClientRect();
+      p.size = r.width;
+      canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    };
+    p.sx = (v) => ((v + ext) / (2 * ext)) * p.size;
+    p.sy = (v) => ((ext - v) / (2 * ext)) * p.size;
+    p.draw = () => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, p.size, p.size);
+      draw(p);
+    };
+    const toPlane = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return [((e.clientX - r.left) / r.width) * 2 * ext - ext, ext - ((e.clientY - r.top) / r.height) * 2 * ext];
+    };
+    let drag = null;
+    canvas.addEventListener("pointerdown", (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, y: e.clientY, moved: false };
+      onSet(toPlane(e), "down");
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) return; // a click, not a drag
+      drag.moved = true;
+      onSet(toPlane(e), "drag");
+    });
+    canvas.addEventListener("pointerup", () => { drag = null; });
+    canvas.addEventListener("pointercancel", () => { drag = null; });
+    return p;
   }
-  const sx = (v) => ((v + PEXT) / (2 * PEXT)) * psize;
-  const sy = (v) => ((PEXT - v) / (2 * PEXT)) * psize;
-  function drawPad() {
-    const c = pctx;
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.clearRect(0, 0, psize, psize);
-    c.strokeStyle = tok.line; c.lineWidth = 1;
-    c.beginPath(); c.moveTo(sx(0), 0); c.lineTo(sx(0), psize); c.moveTo(0, sy(0)); c.lineTo(psize, sy(0)); c.stroke();
-    c.fillStyle = tok.muted; c.font = `500 10px ${css().getPropertyValue("--font-data")}`;
-    for (const k of [1, 2, 3]) {
-      c.globalAlpha = k === 1 ? 0.9 : 0.55;
-      c.setLineDash(k === 1 ? [] : [2, 4]);
-      c.beginPath(); c.arc(sx(0), sy(0), (k / (2 * PEXT)) * psize, 0, 2 * Math.PI); c.stroke();
-      if (k < 3) c.fillText(`${k}σ`, sx(0) + 4, sy(k) + 11);
-    }
-    c.setLineDash([]); c.globalAlpha = 1;
-    c.fillText("s₁", psize - 16, sy(0) - 5);
-    c.fillText("s₂", sx(0) + 5, 12);
-    const x = sx(S.style[0]), y = sy(S.style[1]);
+  function crosshair(p, a, b) {
+    const c = p.ctx, x = p.sx(a), y = p.sy(b);
     c.strokeStyle = tok.accent; c.lineWidth = 1;
     c.beginPath(); c.moveTo(x - 12, y); c.lineTo(x - 5, y); c.moveTo(x + 5, y); c.lineTo(x + 12, y);
     c.moveTo(x, y - 12); c.lineTo(x, y - 5); c.moveTo(x, y + 5); c.lineTo(x, y + 12); c.stroke();
     c.fillStyle = tok.accent; c.beginPath(); c.arc(x, y, 3.5, 0, 2 * Math.PI); c.fill();
   }
-  function setStyle(a, b) {
-    const cl = (v) => Math.max(-PEXT, Math.min(PEXT, v));
-    S.style = [cl(a), cl(b)];
+  function axes(p, xl, yl) {
+    const c = p.ctx;
+    c.strokeStyle = tok.line; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(p.sx(0), 0); c.lineTo(p.sx(0), p.size); c.moveTo(0, p.sy(0)); c.lineTo(p.size, p.sy(0)); c.stroke();
+    c.fillStyle = tok.muted; c.font = `500 10px ${css().getPropertyValue("--font-data")}`;
+    c.fillText(xl, p.size - 16, p.sy(0) - 5);
+    c.fillText(yl, p.sx(0) + 5, 12);
+  }
+  const clamp = (v, e) => Math.max(-e, Math.min(e, v));
+  const keyNudge = (canvas, get, set) => canvas.addEventListener("keydown", (e) => {
+    const d = e.shiftKey ? 0.5 : 0.1;
+    const m = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, d], ArrowDown: [0, -d] }[e.key];
+    if (m) { e.preventDefault(); const v = get(); set(v[0] + m[0], v[1] + m[1]); }
+  });
+  // A pad press while paused mid-run jumps to the end, where the change is visible.
+  const showEnd = () => { if (S.t < S.steps && !S.playing) S.t = S.steps; };
+
+  // Class codes: ten points on a circle. Each digit owns the wedge around its code (its nearest-code region).
+  const nearestDigit = (a, b) => {
+    let best = 0, bd = Infinity;
+    model.codes.forEach(([u, v], k) => { const d = (a - u) ** 2 + (b - v) ** 2; if (d < bd) { bd = d; best = k; } });
+    return best;
+  };
+  const codePad = makePad(document.getElementById("codePad"), 3, (p) => {
+    const c = p.ctx, codes = model.codes, R = Math.hypot(...codes[0]);
+    const n = codes.length, a0 = Math.atan2(codes[0][1], codes[0][0]);
+    const near = nearestDigit(...S.code);
+    // the wedge of the current nearest digit, then all wedge boundaries
+    c.fillStyle = tok.accent; c.globalAlpha = 0.09;
+    c.beginPath(); c.moveTo(p.sx(0), p.sy(0));
+    for (const da of [-0.5, 0.5]) { const a = a0 + ((near + da) * 2 * Math.PI) / n; c.lineTo(p.sx(5 * Math.cos(a)), p.sy(5 * Math.sin(a))); }
+    c.fill(); c.globalAlpha = 1;
+    c.strokeStyle = tok.line; c.lineWidth = 1;
+    c.beginPath();
+    for (let k = 0; k < n; k++) { const a = a0 + ((k + 0.5) * 2 * Math.PI) / n; c.moveTo(p.sx(0), p.sy(0)); c.lineTo(p.sx(5 * Math.cos(a)), p.sy(5 * Math.sin(a))); }
+    c.stroke();
+    c.setLineDash([2, 4]); c.beginPath(); c.arc(p.sx(0), p.sy(0), (R / (2 * p.ext)) * p.size, 0, 2 * Math.PI); c.stroke(); c.setLineDash([]);
+    const fs = Math.round(p.size * 0.085);
+    c.font = `800 ${fs}px ${css().getPropertyValue("--font-display")}`;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    codes.forEach(([u, v], k) => {
+      c.fillStyle = k === near ? tok.accent : tok.ink;
+      c.globalAlpha = k === near ? 1 : 0.55;
+      c.fillText(String(k), p.sx(u * 1.22), p.sy(v * 1.22));
+      c.globalAlpha = 1;
+      c.fillStyle = k === near ? tok.accent : tok.muted;
+      c.beginPath(); c.arc(p.sx(u), p.sy(v), 2, 0, 2 * Math.PI); c.fill();
+    });
+    c.textAlign = "start"; c.textBaseline = "alphabetic";
+    crosshair(p, ...S.code);
+  }, ([a, b], kind) => {
+    if (kind === "down") {
+      // A press near a digit's code (or its numeral) snaps to that digit exactly and replays the fold.
+      const k = nearestDigit(a, b), [u, v] = model.codes[k];
+      if (Math.hypot(a - u, b - v) < 0.45 || Math.hypot(a - 1.22 * u, b - 1.22 * v) < 0.45) return setLabel(k);
+      showEnd();
+    }
+    setCode(a, b);
+  });
+  function setCode(a, b) {
+    S.code = [clamp(a, 3), clamp(b, 3)];
+    S.label = nearestDigit(...S.code);
     restart(false);
     updateLabels();
   }
-  let dragging = false;
-  function padPoint(e) {
-    const r = pad.getBoundingClientRect();
-    setStyle(((e.clientX - r.left) / r.width) * 2 * PEXT - PEXT, PEXT - ((e.clientY - r.top) / r.height) * 2 * PEXT);
+  keyNudge(codePad.canvas, () => S.code, setCode);
+
+  const stylePad = makePad(document.getElementById("pad"), 3, (p) => {
+    const c = p.ctx;
+    axes(p, "s₁", "s₂");
+    for (const k of [1, 2, 3]) {
+      c.globalAlpha = k === 1 ? 0.9 : 0.55;
+      c.setLineDash(k === 1 ? [] : [2, 4]);
+      c.beginPath(); c.arc(p.sx(0), p.sy(0), (k / (2 * p.ext)) * p.size, 0, 2 * Math.PI); c.stroke();
+      if (k < 3) c.fillText(`${k}σ`, p.sx(0) + 4, p.sy(k) + 11);
+    }
+    c.setLineDash([]); c.globalAlpha = 1;
+    crosshair(p, ...S.style);
+  }, ([a, b], kind) => { if (kind === "down") showEnd(); setStyle(a, b); });
+  function setStyle(a, b) {
+    S.style = [clamp(a, 3), clamp(b, 3)];
+    restart(false);
+    updateLabels();
   }
-  pad.addEventListener("pointerdown", (e) => {
-    dragging = true; pad.setPointerCapture(e.pointerId); padPoint(e);
-    if (S.t < S.steps && !S.playing) S.t = S.steps;
-  });
-  pad.addEventListener("pointermove", (e) => { if (dragging) padPoint(e); });
-  pad.addEventListener("pointerup", () => { dragging = false; });
-  pad.addEventListener("pointercancel", () => { dragging = false; });
-  pad.addEventListener("keydown", (e) => {
-    const d = e.shiftKey ? 0.5 : 0.1;
-    const m = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, d], ArrowDown: [0, -d] }[e.key];
-    if (m) { e.preventDefault(); setStyle(S.style[0] + m[0], S.style[1] + m[1]); }
-  });
+  keyNudge(stylePad.canvas, () => S.style, setStyle);
 
   function gauss() {
     let u = 0, v = 0;
@@ -475,19 +571,18 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
   document.getElementById("random").addEventListener("click", sampleStyle);
+  const jitterIn = document.getElementById("jitter");
+  jitterIn.addEventListener("input", () => { S.jitter = +jitterIn.value; restart(false); updateLabels(); });
+  document.getElementById("reroll").addEventListener("click", () => {
+    noise = {};
+    if (S.jitter === 0) { S.jitter = 0.05; jitterIn.value = S.jitter; }
+    restart(false); updateLabels();
+  });
   document.getElementById("origin").addEventListener("click", () => setStyle(0, 0));
   function sampleStyle() { setStyle(gauss(), gauss()); }
 
   // ---------- controls ----------
-  const keypad = document.getElementById("keypad");
-  for (let k = 0; k < 10; k++) {
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = k; b.dataset.k = k;
-    b.setAttribute("aria-label", `Digit ${k}`);
-    b.addEventListener("click", () => setLabel(k));
-    keypad.appendChild(b);
-  }
-  function setLabel(k) { S.label = k; restart(true); updateLabels(); }
+  function setLabel(k) { S.label = k; S.code = model.codes[k].slice(); restart(true); updateLabels(); }
 
   function segmented(id, options, key, onChange) {
     const el = document.getElementById(id);
@@ -500,9 +595,10 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
     const sync = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v == S[key])));
     sync();
   }
+  segmented("segModel", MODELS.map((m) => [m.name, m.title]), "model", () => { model = load(S.model); restart(true); updateLabels(); });
   segmented("segN", [[64, "64"], [128, "128"], [256, "256"], [512, "512"]], "n", () => restart(true));
-  segmented("segSteps", [[16, "16"], [32, "32"], [64, "64"]], "steps", setSteps);
-  segmented("segSpeed", [[2, "slow"], [4, "normal"], [10, "fast"]], "speed");
+  segmented("segSteps", [[16, "16"], [32, "32"], [64, "64"], [128, "128"], [256, "256"]], "steps", setSteps);
+  segmented("segSpeed", [[2, "slow"], [4, "normal"], [10, "fast"], [40, "faster"]], "speed");
   segmented("segMode", [["dots", "boids"], ["ink", "28×28"]], "mode");
   segmented("segColor", [["origin", "start"], ["style", "s₁ now"]], "color");
   segmented("segTrails", [["off", "off"], ["on", "on"]], "trails");
@@ -533,7 +629,7 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
     const el = document.getElementById("ticks");
     el.innerHTML = "";
     scrub.max = S.steps;
-    const every = S.steps <= 16 ? 2 : S.steps <= 32 ? 4 : 8;
+    const every = S.steps <= 16 ? 2 : S.steps / 8;
     for (let k = 0; k <= S.steps; k += every) {
       const s = document.createElement("span");
       s.textContent = k;
@@ -554,11 +650,13 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
   const $ = (id) => document.getElementById(id);
   const f2 = (v) => (v < 0 ? "−" : " ") + Math.abs(v).toFixed(2);
   function updateLabels() {
-    keypad.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.k === S.label)));
-    const code = model.codes[S.label];
-    $("codeOut").textContent = `(${f2(code[0])}, ${f2(code[1])})`;
+    $("codeOut").textContent = `(${f2(S.code[0])}, ${f2(S.code[1])})`;
     $("styleOut").textContent = `(${f2(S.style[0])}, ${f2(S.style[1])})`;
-    $("tagLeft").textContent = `digit ${S.label}`;
+    $("jitterOut").textContent = S.jitter === 0 ? "off" : S.jitter.toFixed(3);
+    const [u, v] = model.codes[S.label];
+    const exact = Math.hypot(S.code[0] - u, S.code[1] - v) < 1e-9;
+    $("tagLeft").textContent = exact ? `digit ${S.label}` : `code near ${S.label}`;
+    $("modelNote").textContent = MODELS.find((m) => m.name === S.model).note;
   }
 
   function updateReadouts(run, st) {
@@ -589,20 +687,23 @@ button:focus-visible, #pad:focus-visible, input:focus-visible { outline: 2px sol
     const run = runFor(S.t);
     const st = stateAt(run, S.t);
     drawView(run, st);
-    drawPad();
+    codePad.draw();
+    stylePad.draw();
     updateReadouts(run, st);
     requestAnimationFrame(frame);
   }
 
-  function relayout() { fitView(); fitPad(); }
+  function relayout() { fitView(); codePad.fit(); stylePad.fit(); }
   new ResizeObserver(relayout).observe(document.getElementById("stage"));
-  new ResizeObserver(relayout).observe(pad);
+  new ResizeObserver(relayout).observe(stylePad.canvas);
+  new ResizeObserver(relayout).observe(codePad.canvas);
   const retheme = () => readTokens();
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
   new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   readTokens();
   buildTicks();
+  S.code = model.codes[S.label].slice();
   updateLabels();
   restart(true);
   relayout();
