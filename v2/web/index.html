@@ -227,7 +227,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     </div>
   </section>
 
-  <p class="foot">Both models have 69,384 parameters: 2 heads and a 6→256→256→6 GELU feed-forward, trained on 64 boids. The dynamics are close to mean-field, so other swarm sizes work too. Steps past 16 extrapolate beyond what the model was trained on. Keys: <code>0</code>–<code>9</code> pick a digit, <code>space</code> plays, <code>s</code> samples a style.</p>
+  <p class="foot">Both models have 69,384 parameters: 2 heads and a 6→256→256→6 GELU feed-forward, trained on 64 boids. The dynamics are close to mean-field, so other swarm sizes work too. The original was trained on 16 steps; the stable model was fine-tuned to stay put through step 32. Anything longer extrapolates. Keys: <code>0</code>–<code>9</code> pick a digit, <code>space</code> plays, <code>s</code> samples a style.</p>
 </div>
 
 <script src="models/original.js"></script>
