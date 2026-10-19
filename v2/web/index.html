@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Digit Swarm</title>
+<title>Murmuration</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +30,7 @@
   --font-display: "Geist", "SF Pro Display", -apple-system, "Helvetica Neue", Arial, sans-serif;
   --font-body: "Geist", "SF Pro Text", -apple-system, "Helvetica Neue", Arial, sans-serif;
   --font-data: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-serif: "Murmuration CM", "Murmuration CM Math", "Latin Modern Roman", "CMU Serif", "Times New Roman", Times, serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -190,7 +191,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
 /* ---------- "How it works" button ---------- */
 .guide-btn {
-  display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 3px; border-radius: 999px; cursor: pointer;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 3px; border-radius: 999px; cursor: pointer;
   border: 1px solid transparent; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 14.5px; white-space: nowrap;
 }
 .guide-btn:hover { border-color: var(--accent); }
@@ -202,35 +203,98 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 .guide { position: fixed; inset: 0; z-index: 20; background: var(--surface); display: flex; flex-direction: column; }
 .guide-top { flex: none; height: 60px; display: flex; align-items: center; gap: 16px; padding-inline: 20px; border-bottom: 1px solid var(--line); }
 .guide-top h2 { margin: 0; font: 700 17px var(--font-display); letter-spacing: -0.01em; white-space: nowrap; }
-.guide-nav { flex: 1; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; justify-content: center; min-width: 0; }
-.guide-nav button { border: 0; background: transparent; font-size: 14px; color: var(--muted); padding: 5px 9px; border-radius: 6px; white-space: nowrap; display: flex; gap: 6px; align-items: center; cursor: pointer; }
-.guide-nav button span { font: 500 12px var(--font-data); color: var(--faint); }
-.guide-nav button:hover, .guide-nav button[aria-current="true"] { color: var(--ink); background: var(--chrome); }
-.guide-nav button[aria-current="true"] span { color: var(--accent); }
-.guide-body { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-.guide-intro { max-width: 1120px; margin: 0 auto; padding: 64px 24px 24px; display: grid; gap: 12px; }
-.guide-intro .eyebrow { font: 500 13px var(--font-data); color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
-.guide-intro h1 { margin: 0; font: 700 clamp(32px, 4vw, 52px)/1.06 var(--font-display); letter-spacing: -0.035em; max-width: 20ch; text-wrap: balance; }
-.guide-intro p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.55; max-width: 52ch; }
-.chapter { max-width: 1120px; margin: 0 auto; padding: 56px 24px; display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 56px; align-items: center; border-top: 1px solid var(--line); }
-.ch-text { display: grid; gap: 12px; align-content: start; }
-.ch-num { font: 500 13px var(--font-data); color: var(--accent); letter-spacing: 0.08em; }
-.ch-text h3 { margin: 0; font: 600 26px/1.15 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
-.ch-text p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.55; max-width: 38ch; }
-.math { font: 500 14px/1.7 var(--font-data); color: var(--ink); background: var(--chrome); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; white-space: pre; overflow-x: auto; }
-.math small { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.5; white-space: normal; }
-.ch-fig { margin: 0; min-width: 0; position: relative; display: grid; justify-items: center; }
-.ch-fig canvas { width: 100%; display: block; }
+.guide-nav { flex: 1; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; min-width: 0; }
+.guide-nav a { text-decoration: none; border: 0; background: transparent; font-size: 14px; color: var(--muted); padding: 5px 9px; border-radius: 6px; white-space: nowrap; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.guide-nav a span { font: 500 12px var(--font-data); color: var(--faint); }
+.guide-nav a:hover, .guide-nav a[aria-current="true"] { color: var(--ink); background: var(--chrome); }
+.guide-nav a[aria-current="true"] span { color: var(--accent); }
+.guide-body { flex: 1; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; color: var(--ink); }
+.guide[data-style="paper"] .guide-body { font-family: var(--font-serif); }
+.guide[data-style="visual"] .guide-body { font-family: var(--font-body); }
+.guide-top .seg { flex: none; }
+/* Paper layout: a centred 720px text column; figures run wider than the text, captions sit under them. */
+.paper-title { max-width: 760px; margin: 0 auto; padding: 72px 24px 0; text-align: center; display: grid; gap: 12px; justify-items: center; }
+.paper-title h1 { margin: 0; font: 600 clamp(32px, 4.2vw, 46px)/1.12 var(--font-serif); letter-spacing: -0.005em; text-wrap: balance; }
+.paper-title .byline { font: italic 400 19px/1.4 var(--font-serif); color: var(--muted); }
+.abstract { max-width: 600px; margin: 28px auto 0; padding-inline: 24px; display: grid; gap: 10px; }
+.abstract h2 { margin: 0; text-align: center; font: 600 15px var(--font-serif); font-variant: small-caps; letter-spacing: 0.08em; }
+.abstract p { margin: 0; font: 400 17px/1.6 var(--font-serif); text-align: justify; hyphens: auto; }
+.abstract .guide-actions { justify-content: center; margin-top: 10px; }
+.guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cta {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--accent-ink); font: 600 15px var(--font-body); cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.cta:hover { filter: brightness(1.08); }
+.cta svg { display: block; }
+.cta.small { padding: 6px 12px; font-size: 14px; }
+.ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: 500 14px var(--font-body); cursor: pointer; white-space: nowrap; }
+.ghost:hover { border-color: var(--muted); }
+.ghost.small { padding: 5px 11px; font-size: 13.5px; }
+.guide-top .tools { display: flex; align-items: center; gap: 8px; }
+.p-out { max-width: 760px; margin: 0 auto; padding: 56px 24px 24px; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.p-out h3 { margin: 0; font: 600 24px/1.25 var(--font-serif); }
+.p-out p { margin: 0; color: var(--muted); font: 400 18px/1.6 var(--font-serif); max-width: 52ch; }
+.p-chapter { max-width: 768px; margin: 0 auto; padding: 44px 24px 4px; }
+.p-chapter h3 { margin: 0 0 14px; font: 600 24px/1.25 var(--font-serif); display: flex; gap: 0.8em; text-wrap: balance; }
+.p-num { font: 600 24px/1.25 var(--font-serif); color: var(--ink); font-variant-numeric: lining-nums; }
+.p-chapter p { margin: 0 0 14px; font: 400 18px/1.6 var(--font-serif); text-align: justify; hyphens: auto; }
+/* Display equations, numbered on the right, as in LaTeX. */
+.eq { display: grid; grid-template-columns: 3.5em minmax(0, 1fr) 3.5em; align-items: baseline; margin: 16px 0; }
+.eq .body { grid-column: 2; text-align: center; font: 400 21px/1.5 var(--font-serif); overflow-x: auto; white-space: nowrap; }
+.eq i { font-style: italic; } /* as in LaTeX: variables italic; numbers, brackets and operators upright */
+.eq .n { grid-column: 3; text-align: right; font: 400 17px var(--font-serif); color: var(--ink); }
+.eq .op, .eq .up { font-style: normal; }
+.eq sub, .eq sup { font-size: 0.68em; }
+.p-fig { margin: 26px 0 10px 50%; transform: translateX(-50%); width: min(1040px, calc(100vw - 48px)); position: relative; display: grid; justify-items: center; gap: 12px; }
+.p-fig canvas { width: 100%; display: block; }
+.p-fig figcaption { max-width: 720px; width: 100%; padding-inline: 0; font: 400 15.5px/1.5 var(--font-serif); color: var(--muted); text-align: justify; hyphens: auto; }
+.p-fig figcaption b { color: var(--ink); font-weight: 600; }
+/* A booktabs table: heavy top and bottom rules, a light rule under the head. */
+.booktabs { margin: 22px auto 6px; border-collapse: collapse; font: 400 16.5px/1.45 var(--font-serif); font-variant-numeric: tabular-nums lining-nums; }
+.booktabs caption { caption-side: top; text-align: left; font: 400 15.5px/1.5 var(--font-serif); color: var(--muted); padding-bottom: 8px; }
+.booktabs caption b { color: var(--ink); font-weight: 600; }
+.booktabs th, .booktabs td { padding: 4px 16px; text-align: left; }
+.booktabs th:last-child, .booktabs td:last-child { text-align: right; }
+.booktabs thead tr { border-top: 1.6px solid var(--ink); border-bottom: 0.8px solid var(--ink); }
+.booktabs thead th { font-weight: 600; }
+.booktabs tbody tr:last-child { border-bottom: 1.6px solid var(--ink); }
+.booktabs tr.total { border-top: 0.8px solid var(--ink); }
+.booktabs tr.total td { font-weight: 600; }
+.booktabs .grp td { font-style: italic; color: var(--muted); padding-top: 8px; text-align: left; }
 .tip { position: absolute; pointer-events: none; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px 9px; font: 500 13px/1.6 var(--font-data); color: var(--ink); white-space: nowrap; }
 .tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.guide-end { max-width: 1120px; margin: 0 auto; padding: 48px 24px 72px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px; }
-.guide-end h3 { margin: 0 0 12px; font: 600 15px var(--font-body); }
-.guide-end p { margin: 0; color: var(--muted); max-width: 52ch; }
-.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px 16px; font-size: 14.5px; color: var(--muted); }
+.p-end { max-width: 768px; margin: 0 auto; padding: 40px 24px 80px; display: grid; gap: 28px; }
+.p-end h3 { margin: 0 0 12px; font: 600 20px/1.3 var(--font-serif); }
+.p-end p { margin: 0; font: 400 17px/1.6 var(--font-serif); color: var(--ink); text-align: justify; }
+.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 16px; font-size: 14.5px; color: var(--muted); }
+.p-end .keys { font: 400 16.5px var(--font-serif); color: var(--ink); }
 .keys kbd { font: 500 13px var(--font-data); color: var(--ink); background: var(--chrome); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; margin-right: 6px; }
 
+/* ----- Visual version: sans, a figure beside each text, formula cards ----- */
+.v-intro { max-width: 1120px; margin: 0 auto; padding: 64px 24px 24px; display: grid; gap: 12px; }
+.v-intro .eyebrow { font: 500 13px var(--font-data); color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
+.v-intro h1 { margin: 0; font: 700 clamp(32px, 4vw, 52px)/1.06 var(--font-display); letter-spacing: -0.035em; max-width: 20ch; text-wrap: balance; }
+.v-intro p { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.55; max-width: 52ch; }
+.v-chapter { max-width: 1120px; margin: 0 auto; padding: 56px 24px; display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 56px; align-items: center; border-top: 1px solid var(--line); }
+.v-text { display: grid; gap: 12px; align-content: start; }
+.v-num { font: 500 13px var(--font-data); color: var(--accent); letter-spacing: 0.08em; }
+.v-text h3 { margin: 0; font: 600 26px/1.15 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
+.v-text p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.55; max-width: 38ch; }
+.math { font: 500 14px/1.7 var(--font-data); color: var(--ink); background: var(--chrome); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; white-space: pre; overflow-x: auto; }
+.math small { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.5; white-space: normal; }
+.v-fig { margin: 0; min-width: 0; position: relative; display: grid; justify-items: center; }
+.v-fig canvas { width: 100%; display: block; }
+.v-out { max-width: 1120px; margin: 0 auto; padding: 56px 24px; border-top: 1px solid var(--line); display: grid; gap: 14px; justify-items: start; }
+.v-out h3 { margin: 0; font: 600 26px/1.15 var(--font-display); letter-spacing: -0.02em; }
+.v-out p { margin: 0; color: var(--muted); font-size: 16px; max-width: 52ch; }
+.v-end { max-width: 1120px; margin: 0 auto; padding: 48px 24px 72px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px; }
+.v-end h3 { margin: 0 0 12px; font: 600 15px var(--font-body); }
+.v-end p { margin: 0; color: var(--muted); max-width: 52ch; }
+
 @media (max-width: 1100px) { .brand small { display: none; } }
+@media (max-width: 1240px) { .guide-nav a span { display: none; } .guide-nav a { padding: 5px 7px; } }
 /* ---------- small screens: one scrolling column ---------- */
 @media (max-width: 900px) {
   html, body { height: auto; }
@@ -248,10 +312,21 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   .transport .opt { display: none; }
   .side { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
   .guide-nav { display: none; }
-  .guide-top { justify-content: space-between; }
-  .guide-intro { padding: 36px 16px 8px; }
-  .chapter { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 36px 16px; }
-  .guide-end { padding: 36px 16px 56px; }
+  .guide-top { justify-content: flex-end; }
+  .paper-title { padding: 40px 16px 0; }
+  .abstract { padding-inline: 16px; }
+  .p-out { padding: 36px 16px 16px; }
+  .p-chapter p { font-size: 17px; text-align: left; }
+  .eq { grid-template-columns: 0 minmax(0, 1fr) 2.6em; }
+  .eq .body { font-size: 16px; white-space: normal; text-wrap: balance; }
+  .p-fig { width: calc(100vw - 32px); }
+  .v-intro { padding: 36px 16px 8px; }
+  .v-chapter { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 36px 16px; }
+  .v-out { padding: 36px 16px; }
+  .v-end { padding: 36px 16px 56px; }
+  .guide-top .ghost { display: none; }
+  .p-chapter { padding: 32px 16px 4px; }
+  .p-end { padding: 32px 16px 56px; }
 }
 @media (prefers-reduced-motion: reduce) { .guide-btn.new .q::after { animation: none; opacity: 0.5; } .guide-body { scroll-behavior: auto; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
@@ -261,7 +336,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   <header class="top">
     <div class="brand">
       <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><g fill="currentColor"><circle cx="10" cy="10" r="1.6"/><circle cx="13.4" cy="7.2" r="1.3"/><circle cx="6.2" cy="12.4" r="1.3"/><circle cx="7.4" cy="5.6" r="1.1"/><circle cx="14.2" cy="13" r="1.1"/><circle cx="4.6" cy="8.4" r="0.9"/><circle cx="10.6" cy="15.2" r="0.9"/><circle cx="16" cy="9.8" r="0.8"/><circle cx="10.2" cy="3.8" r="0.8"/></g></svg>
-      Digit Swarm <small>transformer as a flock</small>
+      Murmuration <small>transformer as a flock</small>
     </div>
     <nav class="modes" role="tablist" aria-label="Mode">
       <button role="tab" id="tab-explore" data-mode="explore" aria-selected="true">Explore <kbd>E</kbd></button>
@@ -270,7 +345,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     </nav>
     <div class="spacer"></div>
     <div class="model"><span>Model</span><div class="seg" id="segModel"></div></div>
-    <button class="guide-btn" id="helpBtn" type="button"><span class="q" aria-hidden="true">?</span>How it works</button>
+    <a class="guide-btn" id="helpBtn" href="#guide"><span class="q" aria-hidden="true">?</span>How it works</a>
   </header>
 
   <main class="center">
@@ -282,14 +357,14 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
         <div class="hud bl" id="hudHint"></div>
       </div>
     </div>
-    <section class="net-pane" aria-label="The network for the followed boid">
+    <section class="net-pane" aria-label="The network for the followed bird">
       <div class="net-card">
         <header>
           <h2>Inside the block</h2>
           <span class="meta" id="netOut"></span>
         </header>
-        <p class="hint" id="netNote">Click any boid on the stage to follow it through one step of the network.</p>
-        <canvas id="netCv" aria-label="The block as a layered network diagram for the followed boid"></canvas>
+        <p class="hint" id="netNote">Click any bird on the stage to follow it through one step of the network.</p>
+        <canvas id="netCv" aria-label="The block as a layered network diagram for the followed bird"></canvas>
         <div class="legend">
           <span><i style="background: var(--pos)"></i>pushes up</span>
           <span><i style="background: var(--neg)"></i>pushes down</span>
@@ -328,7 +403,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       <section class="section">
         <h3>Swarm</h3>
         <div class="opts">
-          <span>Boids</span>
+          <span>Birds</span>
           <div class="seg" id="segN"></div>
           <span>Steps</span>
           <div class="seg" id="segSteps"></div>
@@ -345,20 +420,20 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     <!-- Inspect: one boid through the block -->
     <div class="inspector" data-for="inspect">
       <section class="section">
-        <h3>Followed boid</h3>
-        <p class="hint">Click a boid on the stage. Lines show the boids it hears above an even share.</p>
+        <h3>Followed bird</h3>
+        <p class="hint">Click a bird on the stage. Lines show the birds it pays more than an even share of attention to.</p>
         <div class="opts"><span>Show lines</span><div class="seg" id="segFollow"></div></div>
       </section>
       <section class="section">
         <figure class="cell">
-          <h3>Attention <span class="val">who it listens to</span></h3>
+          <h3>Attention <span class="val">who it attends to</span></h3>
           <canvas id="attnCv" class="wide"></canvas>
           <p class="cap" id="attnCap"></p>
         </figure>
       </section>
       <section class="section">
         <figure class="cell">
-          <h3>Move <span class="val">flock + solo = step</span></h3>
+          <h3>Move <span class="val">attention + MLP = step</span></h3>
           <canvas id="moveCv" class="sq"></canvas>
           <table class="moves" id="moveTable"></table>
         </figure>
@@ -368,7 +443,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     <!-- Design: how it looks, and export -->
     <div class="inspector" data-for="design">
       <section class="section">
-        <h3>Boids</h3>
+        <h3>Birds</h3>
         <div class="opts">
           <span>Dots</span>
           <div class="seg" id="segDots"></div>
@@ -419,19 +494,22 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
 <div class="guide" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle">
   <header class="guide-top">
-    <h2 id="guideTitle">How it works</h2>
+    <h2 id="guideTitle" class="sr-only">How it works</h2>
     <nav class="guide-nav" id="guideNav" aria-label="Chapters"></nav>
-    <button class="icon-btn" id="guideClose" type="button" aria-label="Close the guide">×</button>
+    <div class="seg" id="guideStyle" role="group" aria-label="Version">
+      <button type="button" data-v="visual">Visual</button><button type="button" data-v="paper">Paper</button>
+    </div>
+    <div class="tools">
+      <button class="ghost small" id="guideLink" type="button">Copy link</button>
+      <button class="cta small" data-cta type="button"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.5v9L11.5 7z" fill="currentColor"/></svg>See it in action</button>
+    </div>
   </header>
   <div class="guide-body" id="guideBody">
-    <div class="guide-intro">
-      <span class="eyebrow">A transformer, seen as a flock</span>
-      <h1>A flock of points learns to write digits</h1>
-      <p>No pixels and no pen. A cloud of points moves by one simple rule, repeated, until it forms a handwritten digit. Every picture below is drawn live from the model.</p>
     </div>
   </div>
 </div>
 
+<script src="fonts/ncm.js"></script>
 <script src="models/original.js"></script>
 <script src="models/stable.js"></script>
 <script src="swarm.js"></script>
@@ -668,7 +746,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       for (let i = 0; i < n; i++) pen.circle(X(x[i * D]), Y(x[i * D + 1]), rad, { fill: colorOf(i) });
     }
 
-    // The followed boid: lines to the boids it hears above an even split, per head, and a ring around it.
+    // The followed bird: lines to the birds it attends to more than an even split, per head, and a ring around it.
     if (S.follow === "on" && app.dataset.mode === "inspect" && !forExport && lastIns && focus >= 0 && focus < n) {
       const fx = X(x[focus * D]), fy = Y(x[focus * D + 1]);
       lastIns.attn.forEach((a, h) => {
@@ -692,7 +770,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   function sceneSVG() {
     const { run, st } = lastDrawn, size = 1000, pen = svgPen();
     renderScene(pen, size, run, st, true);
-    const desc = `Digit Swarm: model ${S.model}, code (${S.code.map((v) => v.toFixed(3)).join(", ")}), style (${S.style.map((v) => v.toFixed(3)).join(", ")}), ${run.n} boids, t = ${st.t.toFixed(2)}`;
+    const desc = `Murmuration: model ${S.model}, code (${S.code.map((v) => v.toFixed(3)).join(", ")}), style (${S.style.map((v) => v.toFixed(3)).join(", ")}), ${run.n} birds, t = ${st.t.toFixed(2)}`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">\n<title>${desc}</title>\n${pen.out.join("\n")}\n</svg>\n`;
   }
 
@@ -754,10 +832,10 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     const L = 34, R = W - 58, top = 30, bot = H - 10;
     const cols = [
       { name: "input", vals: ins.input, f: 0 },
-      { name: "+ flock", vals: ins.mid, f: 0.2 },
+      { name: "+ attention", vals: ins.mid, f: 0.2 },
       { name: "hidden 1", vals: ins.hidden[0], f: 0.42 },
       { name: "hidden 2", vals: ins.hidden[1], f: 0.64 },
-      { name: "solo out", vals: ins.out, f: 0.84 },
+      { name: "MLP out", vals: ins.out, f: 0.84 },
       { name: "next", vals: next, f: 1 },
     ];
     for (const c of cols) {
@@ -835,7 +913,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     }
     // labels
     g.font = `500 12px ${font}`; g.fillStyle = tok.muted; g.textAlign = "center";
-    const SHORT = { input: "in", "+ flock": "+flock", "hidden 1": "h1", "hidden 2": "h2", "solo out": "out", next: "next" };
+    const SHORT = { input: "in", "+ attention": "+attn", "hidden 1": "h1", "hidden 2": "h2", "MLP out": "out", next: "next" };
     const narrow = W < 560;
     for (const c of cols) {
       const label = narrow ? SHORT[c.name] : c.vals.length > 16 ? `${c.name} · ${c.vals.length}` : c.name;
@@ -863,10 +941,10 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     const n = run.n;
 
     if (!fresh) return;
-    $("netNote").textContent = `Boid #${focus}, step ${k} → ${k + 1}. Click another boid to follow it instead.`;
+    $("netNote").textContent = `Bird #${focus}, step ${k} → ${k + 1}. Click another bird to follow it instead.`;
     drawDiagram(ins);
 
-    // Attention: each head's weights over the swarm, sorted, with the effective number of boids it hears.
+    // Attention: each head's weights over the swarm, sorted, with the effective number of birds it attends to.
     if (!(netCanvases[1]._w > 40)) return; // the inspector cards are hidden in this mode
     const ac = ctxOf(netCanvases[1]), W = netCanvases[1]._w, H = netCanvases[1]._h;
     // Every boid's weight, sorted, in units of an even split (1 = 1/n). The dashed line is the even split.
@@ -889,9 +967,9 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       ac.fillText(`head ${h + 1} · strongest ${sorted[0].toFixed(2)}× even`, 0, y0 - 4);
     });
     ac.fillStyle = tok.muted;
-    ac.fillText(`all ${n} boids, sorted · dashed = even split`, 0, H - 2);
+    ac.fillText(`all ${n} birds, sorted · dashed = even split`, 0, H - 2);
     const how = (e) => (e > 0.9 * n ? "nearly evenly" : e > 0.5 * n ? "broadly" : "selectively");
-    $("attnCap").innerHTML = `<b class="k1">Head 1</b> listens ${how(eff[0])}: about <b>${eff[0].toFixed(0)}</b> of ${n} boids' worth, strongest link ${peak[0].toFixed(2)}× an even share. <b class="k2">Head 2</b>: about <b>${eff[1].toFixed(0)}</b>, strongest ${peak[1].toFixed(2)}×. Stage lines go to boids heard above average.`;
+    $("attnCap").innerHTML = `<b class="k1">Head 1</b> attends ${how(eff[0])}: about <b>${eff[0].toFixed(0)}</b> of ${n} birds' worth, strongest link ${peak[0].toFixed(2)}× an even share. <b class="k2">Head 2</b>: about <b>${eff[1].toFixed(0)}</b>, strongest ${peak[1].toFixed(2)}×. Stage lines go to birds heard above average.`;
 
     // The move in the picture plane: flock (attention) then solo (feed-forward), summing to the step
     const mv = netCanvases[2], mc = ctxOf(mv), S2 = mv._w, o = S2 / 2;
@@ -916,7 +994,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     mc.fillStyle = tok.muted; mc.font = `500 12px ${css().getPropertyValue("--font-data")}`;
     mc.fillText(`longest arrow ${big.toFixed(4)}`, 4, S2 - 4);
     const f4 = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(4);
-    $("moveTable").innerHTML = `<tr><th></th><th class="k1">flock</th><th class="kf">solo</th><th>step</th></tr>` +
+    $("moveTable").innerHTML = `<tr><th></th><th class="k1">attention</th><th class="kf">MLP</th><th>step</th></tr>` +
       [0, 1, 4, 5].map((j) => `<tr><td>Δ${NAMES[j]}</td><td>${f4(ins.flock[j])}</td><td>${f4(ins.solo[j])}</td><td>${f4(step[j])}</td></tr>`).join("");
   }
 
@@ -1115,7 +1193,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   const flash = (msg) => { exportOut.textContent = msg; clearTimeout(flash.t); flash.t = setTimeout(() => (exportOut.textContent = ""), 4000); };
   document.getElementById("exportSvg").addEventListener("click", async () => {
     if (!lastDrawn) return;
-    const svg = sceneSVG(), name = `digit-swarm-${S.label}-t${lastDrawn.st.t.toFixed(1)}.svg`;
+    const svg = sceneSVG(), name = `murmuration-${S.label}-t${lastDrawn.st.t.toFixed(1)}.svg`;
     const dl = await downloadsP;
     if (dl) {
       try { await dl.save({ filename: name, data: svg }); flash("Saved"); }
@@ -1171,90 +1249,267 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
   // ---------- the guide: how it works, in pictures ----------
   const STAB = { steps: [16, 32, 64, 128, 256], original: [0.125, 0.597, 1.530, 1.839, 2.229], stable: [0.143, 0.135, 0.222, 0.514, 1.143] };
+  // Each chapter has two write-ups: v (Visual: plain and evocative) and p (Paper: the scientific account).
   const CHAPTERS = [
-    { id: "boid", narrow: 1.9, nav: "Boid", aspect: 2.6,
-      title: "Every boid is six numbers",
-      text: "A boid is one bird in the flock: a point with six coordinates. Where it is, which digit to draw, and in which handwriting. The last four are the same for every boid.",
-      math: "boid = (x, y, c₁, c₂, s₁, s₂)", note: "a point in ℝ⁶; the stage only shows x and y" },
+    { id: "bird", narrow: 1.9, nav: "Bird", aspect: 2.6,
+      v: { title: "Every bird is six numbers",
+        text: "A bird knows three things: where it is, which digit the flock is drawing, and in whose handwriting. The last two it shares with every other bird.",
+        math: "bird = (x, y, c₁, c₂, s₁, s₂)", note: "a point in ℝ⁶; the stage only shows x and y" },
+      p: { title: "Representation",
+        text: "Each bird is a point in ℝ⁶, Eq. (1). Its first two coordinates are its position in the picture plane; the class code <i>c</i> and the style latent <i>s</i> are identical across the flock at <i>t</i> = 0 (Fig. 1). There is no positional encoding: a bird's identity is its initial position.",
+        eq: ['<span class="op">bird</span> = (<i>x</i>, <i>y</i>, <i>c</i><sub>1</sub>, <i>c</i><sub>2</sub>, <i>s</i><sub>1</sub>, <i>s</i><sub>2</sub>) ∈ <span class="up">ℝ</span><sup>6</sup>'],
+        cap: "The three coordinate planes of a bird. Left: positions (<i>x</i>, <i>y</i>) at <i>t</i> = 0; the ringed bird is highlighted. Centre: the ten class codes on a circle of radius 2. Right: the style plane with 1σ and 2σ contours of the prior. The curves indicate that every bird carries the same <i>c</i> and <i>s</i>." } },
     { id: "start", narrow: 0.9, nav: "Start", aspect: 2.1,
-      title: "It starts on a sunflower",
-      text: "Every run starts from the same evenly spread disk. A boid's starting spot is its name, so the same boid lands on the same part of every digit.",
-      math: "rₖ = 0.9 · √(k / n)\nθₖ = k · 137.5°", note: "137.5° is the golden angle: no two boids ever line up" },
+      v: { title: "It starts on a sunflower",
+        text: "Every flight begins in the same place: a sunflower of birds, spread as evenly as a sunflower spreads its seeds. A bird's starting seat is its name, and it keeps that name all the way into the digit.",
+        math: "rₖ = 0.9 · √(k / n)\nθₖ = k · 137.5°", note: "137.5° is the golden angle: no two birds ever line up" },
+      p: { title: "Initial state",
+        text: "Positions are initialised on a Fibonacci (sunflower) disk of radius 0.9, Eq. (2): a deterministic, maximally even point set. Because the initial set is fixed, bird <i>k</i> can be tracked across samples; it occupies the same region of every digit (Fig. 2, right).",
+        eq: ['<i>r<sub>k</sub></i> = 0.9 √(<i>k</i> / <i>n</i>),&emsp; <i>θ<sub>k</sub></i> = <i>k</i> · 137.5°'],
+        cap: "Initial state for <i>n</i> = 233 birds, with the 21 and 34 parastichies drawn. Consecutive birds are separated by the golden angle. Colour encodes initial position and is fixed throughout; right: final states for digits 0, 3 and 7." } },
     { id: "step", narrow: 0.66, nav: "Step", aspect: 2,
-      title: "One step: listen, then think",
-      text: "Each boid listens to the whole flock and moves a little. Then it thinks on its own and moves a little more.",
-      math: "x ← x + 0.1 · attend(x, flock)\nx ← x + 0.1 · mlp(x)", note: "attend: a weighted average over every boid, 2 heads. mlp: a small neural net, 6 → 256 → 256 → 6" },
+      v: { title: "One step: attention, then thought",
+        text: "Each bird glances at the whole flock through attention, and drifts a little. Then it thinks alone, through a small MLP, and drifts a little more.",
+        math: "x ← x + 0.1 · attend(x, flock)\nx ← x + 0.1 · mlp(x)", note: "attend: attention, a weighted average over every bird, 2 heads. mlp: the same small net for every bird, 6 → 256 → 256 → 6" },
+      p: { title: "The block",
+        text: "One application of the block is a residual attention update followed by a residual MLP update, Eqs. (3)–(4), each scaled by 0.1. Attention has two heads that operate in the full six-dimensional space and are averaged rather than concatenated; no layer normalisation is used. The attention weights are close to uniform (Fig. 3, left), so the dynamics are near mean-field.",
+        eq: ['<i>x</i> ← <i>x</i> + 0.1 · <span class="op">Attn</span>(<i>x</i>, <i>X</i>)', '<i>x</i> ← <i>x</i> + 0.1 · <span class="op">MLP</span>(<i>x</i>)'],
+        cap: "One block application for a single bird at <i>t</i> = 5. Left: its attention weights over all 96 birds, averaged over heads (line opacity ∝ weight). Right: the attention and MLP updates, magnified, whose sum is the step." } },
     { id: "repeat", narrow: 1.4, nav: "Repeat", aspect: 3.1,
-      title: "The same step, sixteen times",
-      text: "One set of rules, applied again and again. Nobody tells a boid where to go. The digit appears from the flock.",
-      math: "x₁₆ = B(B(⋯ B(x₀) ⋯))", note: "B is the same block every time: one set of 69,384 numbers" },
+      v: { title: "The same step, sixteen times",
+        text: "No leader and no map. The same small rule runs sixteen times, and a digit condenses out of the cloud.",
+        math: "x₁₆ = B(B(⋯ B(x₀) ⋯))", note: "B is the same block every time: one set of 69,384 numbers" },
+      p: { title: "Weight-shared recurrence",
+        text: "The same block <i>B</i> is applied <i>T</i> = 16 times, Eq. (5), so the flock evolves as an autonomous discrete-time system. The extra coordinates <i>c</i> and <i>s</i> let trajectories cross in the (<i>x</i>, <i>y</i>) projection, which a planar autonomous flow could not do.",
+        eq: ['<i>X</i><sub>16</sub> = <i>B</i><sup>16</sup>(<i>X</i><sub>0</sub>)'],
+        cap: "States at <i>t</i> = 0, 1, 2, 4, 8 and 16 under repeated application of <i>B</i>. Trails show each bird's path since the previous frame." } },
     { id: "prompt", narrow: 1.0, nav: "Prompt", aspect: 1.6,
-      title: "The prompt picks the digit",
-      text: "Ten points on a circle, one per digit. Every boid carries the same one. A point between two digits draws a blend.",
-      math: "cₖ = 2 · (cos 36°k, sin 36°k)", note: "pinned: the flock reads it but never changes it" },
+      v: { title: "The prompt picks the digit",
+        text: "Ten points on a circle, one per digit, like the hours on a clock. Every bird hears the same hour. Stand between two hours and the flock draws something in between.",
+        math: "cₖ = 2 · (cos 36°k, sin 36°k)", note: "pinned: the flock reads it but never changes it" },
+      p: { title: "Class conditioning",
+        text: "The class code is one of ten points on a circle of radius 2, Eq. (6). It is pinned: the block reads these coordinates but its updates to them are masked. Interpolating between two codes yields intermediate shapes (Fig. 5, centre).",
+        eq: ['<i>c<sub>k</sub></i> = 2 (<span class="op">cos</span> 36°<i>k</i>, <span class="op">sin</span> 36°<i>k</i>),&emsp; <i>k</i> = 0, …, 9'],
+        cap: "Final states (<i>t</i> = 16) for the ten class codes, with <i>s</i> = 0, placed at their codes. Centre: the midpoint of two neighbouring codes." } },
     { id: "style", narrow: 1.0, nav: "Style", aspect: 1.6,
-      title: "The style picks the handwriting",
-      text: "A second dial sets slant, width and loops. Pick a random point and you get a new handwriting.",
-      math: "s ~ N(0, I)", note: "free: the flock may change it as it moves, which lets paths cross" },
+      v: { title: "The style picks the handwriting",
+        text: "A second dial for the hand that writes: slant, width, loops. Every point on it is someone's handwriting. A random point is a stranger's.",
+        math: "s ~ N(0, I)", note: "free: the flock may change it as it moves, which lets paths cross" },
+      p: { title: "Style latent",
+        text: "The style <i>s</i> is a two-dimensional latent with prior 𝒩(0, <i>I</i>), Eq. (7). Because it is global rather than drawn per bird, it does not average out over the flock, as independent per-bird noise would.",
+        eq: ['<i>s</i> ∼ 𝒩(0, <i>I</i>)'],
+        cap: "Final states over a 5 × 5 grid of styles, <i>s</i> ∈ {−2, …, 2}², for a fixed class code, with the 1σ and 2σ contours of the prior." } },
     { id: "learn", narrow: 0.8, nav: "Learning", aspect: 2.4,
-      title: "How it learned",
-      text: "Show it a real digit. Guess its handwriting, let the flock draw, blur both, and measure the gap. Nudge every number to make the gap smaller. Repeat: 60,000 digits, 20 times over.",
-      math: "gap  = Σσ ‖Gσ∗flock − Gσ∗ink‖²\nloss = gap + 0.01 · KL(q ‖ N(0,I))", note: "Gσ blurs at σ = 0.75, 1.5 and 3 px. q is the guessed style. The KL term keeps guesses inside the round cloud, so random styles look real." },
+      v: { title: "How it learned",
+        text: "It was shown 60,000 handwritten digits, twenty times over. Each time it guessed the handwriting, let the flock draw, blurred both pictures, and measured how far apart they were. Then every number in it moved a hair to close the gap.",
+        math: "gap  = Σσ ‖Gσ∗flock − Gσ∗ink‖²\nloss = gap + 0.01 · KL(q ‖ N(0,I))", note: "Gσ blurs at σ = 0.75, 1.5 and 3 px. q is the guessed style. The KL term keeps guesses inside the round cloud, so random styles look real." },
+      p: { title: "Training",
+        text: "The flock is the decoder of a class-conditional VAE. A convolutional encoder maps an MNIST image to <i>q</i>(<i>s</i> | image). The final cloud is splatted onto the 28 × 28 grid and compared with the image's ink measure by a multi-scale Gaussian MMD, Eq. (8), with a KL term, Eq. (9). Training uses 64 birds, AdamW with a one-cycle schedule, batches of 128, and 20 epochs.",
+        eq: ['ℒ<sub>rec</sub> = Σ<sub><i>σ</i></sub> ‖<i>G<sub>σ</sub></i> ∗ (<i>μ</i><sub>flock</sub> − <i>μ</i><sub>ink</sub>)‖<sup>2</sup> / ‖<i>G<sub>σ</sub></i> ∗ <i>μ</i><sub>ink</sub>‖<sup>2</sup>', 'ℒ = ℒ<sub>rec</sub> + 0.01 · <span class="op">KL</span>(<i>q</i>(<i>s</i> | image) ‖ 𝒩(0, <i>I</i>))'],
+        cap: "One training example. The target ink and the flock's splat are blurred at σ ∈ {0.75, 1.5, 3} px and compared; the rightmost panel shows their difference at σ = 1.5 (teal: flock without ink; orange: ink without flock). The target 7 and the posterior ellipse are illustrative, as the encoder is not included here." } },
     { id: "stable", narrow: 1.2, nav: "Stability", aspect: 1.9,
-      title: "Teaching it to hold still",
-      text: "The original model was only checked at step 16, so afterwards it drifts apart. The stable model was also told to keep still for 16 more steps.",
-      math: "loss += Σ ‖xₜ₊₁ − xₜ‖²,   16 ≤ t &lt; 32", note: "plus a small shake at step 16, so the digit learns to pull itself back. Chart: measured on 500 test digits." },
+      v: { title: "Teaching it to hold still",
+        text: "The first flock only had to look right at step 16, so afterwards it wandered off. The stable flock was also asked to hold the pose for sixteen more steps, and it learned to settle.",
+        math: "loss += Σ ‖xₜ₊₁ − xₜ‖²,   16 ≤ t &lt; 32", note: "plus a small shake at step 16, so the digit learns to pull itself back" },
+      p: { title: "Stability beyond the horizon",
+        text: "The original model is supervised only at <i>t</i> = 16 and drifts afterwards. The stable model is fine-tuned from it for 8 epochs with 16 additional steps, a stillness penalty, Eq. (10), the reconstruction loss at <i>t</i> = 32, and Gaussian jitter (σ = 0.02) at <i>t</i> = 16, which makes the digit attracting.",
+        eq: ['ℒ<sub>hold</sub> = Σ<sub>16 ≤ <i>t</i> &lt; 32</sub> ‖<i>X</i><sub><i>t</i>+1</sub> − <i>X<sub>t</sub></i>‖<sup>2</sup>'],
+        cap: "Reconstruction error (Eq. 8) against the target digit as the block is applied beyond its training horizon, on 500 MNIST test digits. Shaded: the steps the stable model was trained to hold still." } },
     { id: "weights", narrow: 1.1, nav: "Weights", aspect: 2.1,
-      title: "Where the 69,384 numbers live",
-      text: "Almost all of them sit in one 256 × 256 layer: each boid's private thinking. Listening to the flock costs only 258.",
-      math: "attention      258\nmlp         69,126", note: "every square below is one real weight: teal positive, orange negative" },
+      v: { title: "Where the 69,384 numbers live",
+        text: "Almost all of them sit in one 256 × 256 square: the birds' private thinking. Looking at the whole flock costs only 258.",
+        math: "attention      258\nmlp         69,126", note: "every square below is one real weight: teal positive, orange negative" },
+      p: { title: "Parameter count",
+        text: "The block has 69,384 parameters (Table 1). The middle MLP layer accounts for 94.8% of them; attention accounts for 0.37%.",
+        eq: [],
+        cap: "All weights of the block at a common scale, one cell per parameter, in data-flow order (teal positive, orange negative)." } },
   ];
 
   const guideEl = $("guide"), guideBody = $("guideBody"), guideNav = $("guideNav"), helpBtn = $("helpBtn");
-  const stableExtra = `<div class="tip" id="stableTip" hidden></div>
+  const PLAY = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 2.5v9L11.5 7z" fill="currentColor"/></svg>';
+  const CTA = `<button class="cta" data-cta type="button">${PLAY}See it in action</button>`;
+  const stableExtra = () => `<div class="tip" id="stableTip" hidden></div>
     <table class="sr-only"><caption>Error against the real digit by step, lower is better</caption><tr><th>step</th><th>Original</th><th>Stable</th></tr>${STAB.steps.map((t, i) => `<tr><td>${t}</td><td>${STAB.original[i]}</td><td>${STAB.stable[i]}</td></tr>`).join("")}</table>`;
-  guideBody.insertAdjacentHTML("beforeend", CHAPTERS.map((c, i) => `
-    <article class="chapter" id="ch-${c.id}">
-      <div class="ch-text">
-        <span class="ch-num">${String(i + 1).padStart(2, "0")}</span>
-        <h3>${c.title}</h3>
-        <p>${c.text}</p>
-        <div class="math">${c.math}<small>${c.note}</small></div>
-      </div>
-      <figure class="ch-fig">
-        <canvas data-fig="${c.id}" style="aspect-ratio: ${c.aspect}; max-width: calc(66vh * ${c.aspect})" role="img" aria-label="${c.title}"></canvas>${c.id === "stable" ? stableExtra : ""}
-      </figure>
-    </article>`).join("") + `
-    <section class="guide-end">
-      <div><h3>Shortcuts</h3><div class="keys">
+  const canvasFor = (c, title) => `<canvas data-fig="${c.id}" style="aspect-ratio: ${c.aspect}; max-width: calc(66vh * ${c.aspect})" role="img" aria-label="${title}"></canvas>${c.id === "stable" ? stableExtra() : ""}`;
+  const keysHTML = `<div class="keys">
         <span><kbd>0</kbd>–<kbd>9</kbd>pick a digit</span>
         <span><kbd>space</kbd>play or pause</span>
         <span><kbd>S</kbd>sample a style</span>
         <span><kbd>E</kbd><kbd>I</kbd><kbd>D</kbd>switch mode</span>
         <span><kbd>←</kbd><kbd>→</kbd>step through time</span>
         <span><kbd>?</kbd>this guide</span>
-      </div></div>
+      </div>`;
+  const paramTable = `
+    <table class="booktabs">
+      <caption><b>Table 1.</b> Parameters of the block, by component.</caption>
+      <thead><tr><th>Component</th><th>Shape</th><th>Parameters</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="3">Attention</td></tr>
+        <tr><td>query, key, value (2 heads)</td><td>6 × 36</td><td>216</td></tr>
+        <tr><td>output</td><td>6 × 6 + 6</td><td>42</td></tr>
+        <tr class="grp"><td colspan="3">MLP</td></tr>
+        <tr><td>layer 1</td><td>6 × 256 + 256</td><td>1,792</td></tr>
+        <tr><td>layer 2</td><td>256 × 256 + 256</td><td>65,792</td></tr>
+        <tr><td>layer 3</td><td>256 × 6 + 6</td><td>1,542</td></tr>
+        <tr class="total"><td>Total</td><td></td><td>69,384</td></tr>
+      </tbody>
+    </table>`;
+  const VERSIONS = {
+    // Visual: the plain, artistic version.
+    visual: () => `
+    <div class="v-intro">
+      <span class="eyebrow">A transformer, seen as a flock</span>
+      <h1>A flock of birds learns to write digits</h1>
+      <p>No pixels and no pen. A flock of birds moves by one simple rule, repeated, until it forms a handwritten digit. Every picture below is drawn live from the model.</p>
+      <div class="guide-actions">${CTA}<span class="sub" id="guideLinkOut"></span></div>
+    </div>` + CHAPTERS.map((c, i) => `
+    <article class="chapter v-chapter" id="ch-${c.id}">
+      <div class="v-text">
+        <span class="v-num">${String(i + 1).padStart(2, "0")}</span>
+        <h3>${c.v.title}</h3>
+        <p>${c.v.text}</p>
+        <div class="math">${c.v.math}<small>${c.v.note}</small></div>
+      </div>
+      <figure class="v-fig">${canvasFor(c, c.v.title)}</figure>
+    </article>`).join("") + `
+    <section class="v-out"><h3>Now watch it fold</h3><p>Pick a digit, drag the handwriting, and follow one bird through the network.</p>${CTA}</section>
+    <section class="v-end">
+      <div><h3>Shortcuts</h3>${keysHTML}</div>
       <div><h3>The model you are running</h3><p id="modelNote"></p></div>
-    </section>`);
-  guideNav.innerHTML = CHAPTERS.map((c, i) => `<button type="button" data-ch="${c.id}"><span>${String(i + 1).padStart(2, "0")}</span>${c.nav}</button>`).join("");
-  guideNav.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) $("ch-" + b.dataset.ch).scrollIntoView({ block: "start" }); });
-  const figs = Object.fromEntries([...guideBody.querySelectorAll("canvas[data-fig]")].map((cv) => [cv.dataset.fig, cv]));
+    </section>`,
+    // Paper: the scientific version, typeset like a LaTeX article.
+    paper: () => {
+      let eqNo = 0;
+      const eqHTML = (lines) => lines.map((l) => `<div class="eq"><span class="body">${l}</span><span class="n">(${++eqNo})</span></div>`).join("");
+      return `
+    <header class="paper-title">
+      <h1>Murmuration: a recurrent transformer block as a flock that writes digits</h1>
+      <div class="byline">Interactive notes on <span style="font-style: normal">transformer-as-swarm</span>, v2</div>
+    </header>
+    <section class="abstract" aria-label="Abstract">
+      <h2>Abstract</h2>
+      <p>We apply a single weight-shared transformer block recurrently to a set of points in ℝ⁶, read as a flock of birds. From a fixed sunflower initialisation, sixteen applications of the block arrange the flock into a handwritten MNIST digit, conditioned on a class code and a two-dimensional style latent. The model is trained as a class-conditional VAE decoder with a multi-scale Gaussian MMD loss. All figures are computed live from the trained model.</p>
+      <div class="guide-actions">${CTA}<span class="sub" id="guideLinkOut"></span></div>
+    </section>` + CHAPTERS.map((c, i) => `
+    <article class="chapter p-chapter" id="ch-${c.id}">
+      <h3><span class="p-num">${i + 1}</span><span>${c.p.title}</span></h3>
+      <p>${c.p.text}</p>
+      ${eqHTML(c.p.eq)}
+      ${c.id === "weights" ? paramTable : ""}
+      <figure class="p-fig">${canvasFor(c, c.p.title)}<figcaption><b>Figure ${i + 1}.</b> ${c.p.cap}</figcaption></figure>
+    </article>`).join("") + `
+    <section class="p-out"><h3>Interactive version</h3><p>Every quantity above can be varied in the app: class code, style, flock size, number of steps, and the model.</p>${CTA}</section>
+    <section class="p-end">
+      <div><h3>Appendix A. Controls</h3>${keysHTML}</div>
+      <div><h3>Appendix B. The model you are running</h3><p id="modelNote"></p></div>
+    </section>`;
+    },
+  };
+  let guideStyle = "visual";
+  try { if (localStorage.getItem("murmuration-guide-style") === "paper") guideStyle = "paper"; } catch (e) {}
+  const prefix = () => (guideStyle === "paper" ? "paper" : "guide");
+  let figs = {};
   const navIO = new IntersectionObserver((ents) => {
-    for (const en of ents) if (en.isIntersecting) guideNav.querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", String("ch-" + b.dataset.ch === en.target.id)));
+    for (const en of ents) if (en.isIntersecting) {
+      guideNav.querySelectorAll("a").forEach((b) => b.setAttribute("aria-current", String("ch-" + b.dataset.ch === en.target.id)));
+      if (!guideEl.hidden) setHash(en.target.id.replace("ch-", prefix() + "-"));
+    }
   }, { root: guideBody, rootMargin: "-40% 0px -55% 0px" });
-  guideBody.querySelectorAll(".chapter").forEach((el) => navIO.observe(el));
+  function buildGuide() {
+    guideEl.dataset.style = guideStyle;
+    guideBody.innerHTML = VERSIONS[guideStyle]();
+    guideNav.innerHTML = CHAPTERS.map((c, i) => `<a href="#${prefix()}-${c.id}" data-ch="${c.id}"><span>${String(i + 1).padStart(2, "0")}</span>${c.nav}</a>`).join("");
+    figs = Object.fromEntries([...guideBody.querySelectorAll("canvas[data-fig]")].map((cv) => [cv.dataset.fig, cv]));
+    navIO.disconnect();
+    guideBody.querySelectorAll(".chapter").forEach((el) => navIO.observe(el));
+    $("guideStyle").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === guideStyle)));
+    $("modelNote").textContent = MODELS.find((m) => m.name === S.model).note;
+    G.stableGeom = null; G.hover = null;
+  }
+  guideNav.addEventListener("click", (e) => {
+    const a = e.target.closest("a"); if (!a) return;
+    e.preventDefault();
+    $("ch-" + a.dataset.ch).scrollIntoView({ block: "start" });
+    setHash(prefix() + "-" + a.dataset.ch);
+  });
+  // Switch version and stay on the same chapter.
+  function setGuideStyle(v) {
+    if (v === guideStyle) return;
+    const cur = guideNav.querySelector('a[aria-current="true"]')?.dataset.ch || null;
+    guideStyle = v;
+    try { localStorage.setItem("murmuration-guide-style", v); } catch (e) {}
+    buildGuide();
+    setHash(cur ? `${prefix()}-${cur}` : prefix());
+    requestAnimationFrame(() => {
+      guideBody.style.scrollBehavior = "auto";
+      guideBody.scrollTop = cur ? $("ch-" + cur).offsetTop : 0;
+      guideBody.style.scrollBehavior = "";
+      markIntro(); drawGuide();
+    });
+    if (v === "paper") loadPaperFonts();
+  }
+  $("guideStyle").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setGuideStyle(b.dataset.v); });
+  const markIntro = () => {
+    const first = $("ch-" + CHAPTERS[0].id);
+    if (!first || guideBody.scrollTop > first.offsetTop - guideBody.clientHeight * 0.45) return;
+    guideNav.querySelectorAll("a").forEach((b) => b.setAttribute("aria-current", "false"));
+    if (!guideEl.hidden && location.hash !== "#" + prefix()) setHash(prefix());
+  };
+  guideBody.addEventListener("scroll", markIntro, { passive: true });
+  const loadPaperFonts = () => {
+    if (document.fonts?.load) Promise.all(['400 16px "Murmuration CM"', 'italic 400 16px "Murmuration CM"', '600 16px "Murmuration CM"'].map((f) => document.fonts.load(f))).then(() => { if (!guideEl.hidden) drawGuide(); }, () => {});
+  };
 
-  try { if (!localStorage.getItem("digit-swarm-guide-seen")) helpBtn.classList.add("new"); } catch (e) { helpBtn.classList.add("new"); }
-  function openGuide() {
+  try { if (!localStorage.getItem("murmuration-guide-seen")) helpBtn.classList.add("new"); } catch (e) { helpBtn.classList.add("new"); }
+  // The guide has its own address: #guide opens it, #guide-<chapter> opens it at that chapter.
+  const setHash = (h, push) => { try { history[push ? "pushState" : "replaceState"](null, "", "#" + h); return true; } catch (e) { return false; } };
+  const canPush = !window.claude; // inside the claude.ai viewer the page is framed; keep its history alone
+  // #guide[-chapter] opens the Visual version, #paper[-chapter] the Paper version.
+  const guideHash = (h) => /^(guide|paper)(-|$)/.test(h);
+  const parseGuideHash = (h) => ({ style: h.startsWith("paper") ? "paper" : "visual", chapter: h.split("-")[1] || null });
+  let openedByPush = false;
+  function openGuide(chapter, push, style) {
+    const was = guideEl.hidden;
+    if (style && style !== guideStyle) { guideStyle = style; try { localStorage.setItem("murmuration-guide-style", style); } catch (e) {} buildGuide(); }
     guideEl.hidden = false;
     helpBtn.classList.remove("new");
-    try { localStorage.setItem("digit-swarm-guide-seen", "1"); } catch (e) {}
-    $("guideClose").focus();
-    requestAnimationFrame(() => { drawGuide(); computeGuide(); });
+    try { localStorage.setItem("murmuration-guide-seen", "1"); } catch (e) {}
+    if (was) { const h = chapter ? `${prefix()}-${chapter}` : prefix(); openedByPush = push && canPush ? setHash(h, true) : (setHash(h), false); }
+    guideEl.querySelector("[data-cta]").focus({ preventScroll: true });
+    requestAnimationFrame(() => {
+      const target = chapter && $("ch-" + chapter);
+      guideBody.style.scrollBehavior = "auto";
+      guideBody.scrollTop = target ? target.offsetTop : 0;
+      guideBody.style.scrollBehavior = "";
+      markIntro();
+      drawGuide(); computeGuide();
+    });
+    // Canvas text only uses a web font once it has loaded: load the paper's faces, then redraw the figures.
+    if (guideStyle === "paper") loadPaperFonts();
   }
-  function closeGuide() { guideEl.hidden = true; helpBtn.focus(); }
-  helpBtn.addEventListener("click", openGuide);
-  $("guideClose").addEventListener("click", closeGuide);
+  function closeGuide() {
+    if (guideEl.hidden) return;
+    guideEl.hidden = true;
+    // Opened with a click: going back restores the page's own history. Otherwise just restore the mode's address.
+    if (openedByPush) { openedByPush = false; try { history.back(); } catch (e) {} }
+    else setHash(app.dataset.mode);
+    helpBtn.focus({ preventScroll: true });
+  }
+  helpBtn.addEventListener("click", (e) => { e.preventDefault(); openGuide(null, true); });
+  guideEl.addEventListener("click", (e) => { if (e.target.closest("[data-cta]")) closeGuide(); });
+  window.addEventListener("hashchange", () => {
+    const h = location.hash.slice(1);
+    if (guideHash(h)) { if (guideEl.hidden) { const g = parseGuideHash(h); openGuide(g.chapter, false, g.style); } }
+    else if (!guideEl.hidden) { openedByPush = false; guideEl.hidden = true; }
+  });
+  // A shareable link: the public site, at this chapter.
+  const PUBLIC_URL = "https://danielvarga.github.io/transformer-as-swarm/";
+  $("guideLink").addEventListener("click", () => {
+    const here = location.hostname.endsWith("github.io") ? location.origin + location.pathname : PUBLIC_URL;
+    const url = here + location.hash, btn = $("guideLink");
+    const done = (t) => { btn.textContent = t; setTimeout(() => (btn.textContent = "Copy link"), 1800); };
+    navigator.clipboard.writeText(url).then(() => done("Link copied"), () => { $("guideLinkOut").textContent = url; done("Copy failed"); });
+  });
   new ResizeObserver(() => { if (!guideEl.hidden) requestAnimationFrame(drawGuide); }).observe(guideBody);
 
   // --- live data for the figures, computed a few runs at a time so the page stays responsive
@@ -1334,7 +1589,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     return [g, r.width, r.height];
   }
   function label(g, str, x, y, o = {}) {
-    const fam = o.display ? "--font-display" : o.body ? "--font-body" : "--font-data";
+    const fam = guideStyle === "paper" ? "--font-serif" : o.display ? "--font-display" : o.body ? "--font-body" : "--font-data"; // labels follow the version's face
     g.font = `${o.weight || 500} ${Math.round((o.size || 11) * 1.18 * 10) / 10}px ${css().getPropertyValue(fam)}`;
     g.fillStyle = o.color || tok.muted; g.textAlign = o.align || "center"; g.textBaseline = o.base || "alphabetic";
     g.fillText(str, x, y);
@@ -1364,7 +1619,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
   const FIG = {
     // 1. A boid carries three planes' worth of coordinates.
-    boid(g, W, H) {
+    bird(g, W, H) {
       const P = Math.min(H * 0.64, W / 3.7), gap = (W - 3 * P) / 4, cy = H * 0.47;
       const cx = [0, 1, 2].map((i) => gap + P / 2 + i * (P + gap));
       const names = [["x, y", "where it is"], ["c₁, c₂", "which digit"], ["s₁, s₂", "which handwriting"]];
@@ -1391,7 +1646,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       g.strokeStyle = rgba(tok.accent, 0.5); g.lineWidth = 1.2;
       const lift = cy - P * 0.62;
       for (const [tx, ty] of targets) { g.beginPath(); g.moveTo(hx, hy); g.bezierCurveTo(hx, lift, tx, lift, tx, ty); g.stroke(); }
-      label(g, "every boid carries the same two points", (cx[0] + cx[2]) / 2 + P * 0.1, cy - P / 2 - 8, { color: tok.accent, size: 11 });
+      label(g, "every bird carries the same two points", (cx[0] + cx[2]) / 2 + P * 0.1, cy - P / 2 - 8, { color: tok.accent, size: 11 });
       g.strokeStyle = tok.accent; g.lineWidth = 1.5; g.beginPath(); g.arc(hx, hy, P * 0.045, 0, 7); g.stroke();
       for (const [tx, ty] of targets) { g.fillStyle = tok.accent; g.beginPath(); g.arc(tx, ty, 4.5, 0, 7); g.fill(); }
     },
@@ -1424,7 +1679,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       const dg = G.d.digits;
       const m = tall ? Math.min(W * 0.24, H * 0.2) : Math.min(H * 0.36, W * 0.13);
       const xs = (tall ? [0.2, 0.5, 0.8] : [0.64, 0.78, 0.92]).map((f) => W * f), my = tall ? H * 0.86 : cy;
-      label(g, "same colour, same boid, every digit", xs[1], my - m / 2 - 12, { size: 11 });
+      label(g, "same colour, same bird, every digit", xs[1], my - m / 2 - 12, { size: 11 });
       if (tall) {
         arrow(g, cx, cy + Dd / 2 + 8, cx, my - m / 2 - 30, tok.faint, 1.2);
         label(g, "16 steps", cx + 10, (cy + Dd / 2 + my - m / 2 - 22) / 2 + 4, { size: 10.5, color: tok.faint, align: "left" });
@@ -1436,7 +1691,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       [0, 3, 7].forEach((digit, i) => { if (dg && dg[digit]) mini(g, dg[digit], 64, xs[i], my, m); else label(g, "…", xs[i], my, { color: tok.faint }); });
     },
 
-    // 3. One step for one boid: lines to everyone it listens to, and the two nudges, enlarged.
+    // 3. One step for one bird: attention lines to everyone, and the two nudges, enlarged.
     step(g, W, H) {
       const m = G.d.main; if (!m) return notYet(g, W, H);
       const tall = W < 560;
@@ -1448,7 +1703,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       for (let j = 0; j < n; j++) if (j !== f) { g.strokeStyle = rgba(tok.accent, Math.min(0.6, avg[j] * n * 0.2)); g.beginPath(); g.moveTo(fx, fy); g.lineTo(X(x[j * D]), Y(x[j * D + 1])); g.stroke(); }
       flock(g, x, n, D, cx, cy, P, ext, P * 0.012);
       g.strokeStyle = tok.ink; g.lineWidth = 1.5; g.beginPath(); g.arc(fx, fy, P * 0.03, 0, 7); g.stroke();
-      label(g, "listens to all 96 boids, almost equally", cx, tall ? cy + P / 2 + 16 : H - 6, { size: 11 });
+      label(g, "attention to all 96 birds, almost equal", cx, tall ? cy + P / 2 + 16 : H - 6, { size: 11 });
       // the lens
       const R = tall ? Math.min(W * 0.28, H * 0.17) : Math.min(H * 0.36, W * 0.2);
       const zx = tall ? W / 2 : W * 0.73, zy = tall ? cy + P / 2 + 50 + R : H * 0.47;
@@ -1462,15 +1717,17 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       arrow(g, ox, oy, tx, ty, tok.accent, 2.6);
       arrow(g, tx, ty, tx + so[0] * k, ty - so[1] * k, tok.pos, 2.6);
       g.fillStyle = boidRGB(SF(96)[2 * f], SF(96)[2 * f + 1]); g.beginPath(); g.arc(ox, oy, 5, 0, 7); g.fill();
-      const items = [["listen", tok.accent, false], ["think", tok.pos, false], ["= one step", tok.muted, true]];
-      let lx = zx - 118;
+      const items = [["attention", tok.accent, false], ["MLP", tok.pos, false], ["= one step", tok.muted, true]];
+      label(g, "", 0, 0, { size: 12, body: true, weight: 600 }); // set the font, to measure the legend
+      const widths = items.map(([t]) => 24 + g.measureText(t).width + 18);
+      let lx = Math.max(4, zx - (widths.reduce((p, q) => p + q, 0) - 18) / 2);
       for (const [t, c, dashed] of items) {
         g.strokeStyle = c; g.lineWidth = dashed ? 1.4 : 2.6; g.setLineDash(dashed ? [4, 4] : []);
         g.beginPath(); g.moveTo(lx, zy + R + 18); g.lineTo(lx + 18, zy + R + 18); g.stroke(); g.setLineDash([]);
         label(g, t, lx + 24, zy + R + 22, { align: "left", size: 12, body: true, weight: 600, color: c });
         lx += 24 + g.measureText(t).width + 18;
       }
-      label(g, `the two nudges of the ringed boid, enlarged ${Math.round(k / (P / 2 / ext))}×`, zx, zy - R - 10, { size: 11, color: tok.faint });
+      label(g, `the two nudges of the ringed bird, enlarged ${Math.round(k / (P / 2 / ext))}×`, zx, zy - R - 10, { size: 11, color: tok.faint });
     },
 
     // 4. The same block, applied again and again.
@@ -1621,10 +1878,10 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       const Sd = Math.min(H * 0.66, W * 0.44), cell = Sd / 256, cy = H * 0.38, gapW = Math.max(44, W * 0.075);
       const strip = 6 * cell, total = strip * 3 + Sd + gapW * 3, x0 = (W - total) / 2;
       const blocks = [
-        { img: im.att, x: x0, w: strip, h: 42 * cell, name: "listen", n: "258", row: 1 },
-        { img: im.w1, x: x0 + strip + gapW, w: strip, h: Sd, name: "think, in", n: "1,792", row: 0 },
-        { img: im.w2, x: x0 + 2 * strip + 2 * gapW, w: Sd, h: Sd, name: "think, middle", n: "65,792", row: 0 },
-        { img: im.w3, x: x0 + 2 * strip + Sd + 3 * gapW, w: strip, h: Sd, name: "think, out", n: "1,542", row: 1 },
+        { img: im.att, x: x0, w: strip, h: 42 * cell, name: "attention", n: "258", row: 1 },
+        { img: im.w1, x: x0 + strip + gapW, w: strip, h: Sd, name: "MLP in", n: "1,792", row: 0 },
+        { img: im.w2, x: x0 + 2 * strip + 2 * gapW, w: Sd, h: Sd, name: "MLP middle", n: "65,792", row: 0 },
+        { img: im.w3, x: x0 + 2 * strip + Sd + 3 * gapW, w: strip, h: Sd, name: "MLP out", n: "1,542", row: 1 },
       ];
       g.imageSmoothingEnabled = false;
       for (const b of blocks) {
@@ -1677,7 +1934,8 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   function drawGuide() { CHAPTERS.forEach((c) => drawFig(c.id)); }
 
   // hover on the stability chart: values at the nearest step
-  figs.stable.addEventListener("pointermove", (e) => {
+  guideBody.addEventListener("pointermove", (e) => {
+    if (e.target !== figs.stable) { if (G.hover != null) { G.hover = null; $("stableTip").hidden = true; drawFig("stable"); } return; }
     const geo = G.stableGeom; if (!geo) return;
     const r = figs.stable.getBoundingClientRect(), mx = e.clientX - r.left;
     let best = 0; STAB.steps.forEach((t, i) => { if (Math.abs(geo.X(t) - mx) < Math.abs(geo.X(STAB.steps[best]) - mx)) best = i; });
@@ -1689,19 +1947,19 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     tip.style.left = `${off + (x > r.width * 0.6 ? x - tip.offsetWidth - 12 : x + 12)}px`;
     tip.style.top = `${geo.T + 4}px`;
   });
-  figs.stable.addEventListener("pointerleave", () => { G.hover = null; $("stableTip").hidden = true; drawFig("stable"); });
+  guideBody.addEventListener("pointerleave", () => { if (G.hover != null) { G.hover = null; $("stableTip").hidden = true; drawFig("stable"); } });
 
   // ---------- modes, help sheet ----------
   const app = document.getElementById("app");
   const MODES = ["explore", "inspect", "design"];
-  const HINTS = { explore: "Drag on the pads to reshape the digit", inspect: "Click a boid to follow it through the network", design: "What you see here is what exports" };
+  const HINTS = { explore: "Drag on the pads to reshape the digit", inspect: "Click a bird to follow it through the network", design: "What you see here is what exports" };
   function setMode(m) {
     if (!MODES.includes(m)) m = "explore";
     app.dataset.mode = m;
     document.querySelectorAll(".modes [role=tab]").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.mode === m)));
     $("hudHint").textContent = HINTS[m];
-    try { localStorage.setItem("digit-swarm-mode", m); } catch (e) {}
-    try { history.replaceState(null, "", "#" + m); } catch (e) {}
+    try { localStorage.setItem("murmuration-mode", m); } catch (e) {}
+    if (guideEl.hidden) try { history.replaceState(null, "", "#" + m); } catch (e) {}
   }
   document.querySelectorAll(".modes [role=tab]").forEach((t) => t.addEventListener("click", () => setMode(t.dataset.mode)));
 
@@ -1735,14 +1993,14 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     const [u, v] = model.codes[S.label];
     const exact = Math.hypot(S.code[0] - u, S.code[1] - v) < 1e-9;
     $("tagLeft").textContent = exact ? `digit ${S.label}` : `code near ${S.label}`;
-    $("modelNote").textContent = MODELS.find((m) => m.name === S.model).note;
+    const mn = $("modelNote"); if (mn) mn.textContent = MODELS.find((m) => m.name === S.model).note;
   }
 
   function updateReadouts(run, st) {
     const n = run.n;
     $("stepOut").textContent = `t ${st.t.toFixed(2).padStart(5, " ")} / ${S.steps}`;
     const lag = S.t > run.traj.length - 1 + 1e-6 || run !== live;
-    $("tagRight").innerHTML = `${n} boids` + (lag ? `<br><span class="busy">computing step ${live.traj.length - 1}</span>` : "");
+    $("tagRight").innerHTML = `${n} birds` + (lag ? `<br><span class="busy">computing step ${live.traj.length - 1}</span>` : "");
   }
 
   // ---------- loop ----------
@@ -1785,9 +2043,12 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   buildTicks();
   S.code = model.codes[S.label].slice();
   syncDisplay();
-  let startMode = location.hash.slice(1);
-  if (!MODES.includes(startMode)) { try { startMode = localStorage.getItem("digit-swarm-mode"); } catch (e) {} }
+  const startHash = location.hash.slice(1);
+  let startMode = startHash;
+  if (!MODES.includes(startMode)) { try { startMode = localStorage.getItem("murmuration-mode"); } catch (e) {} }
   setMode(startMode);
+  buildGuide();
+  if (guideHash(startHash)) { const g = parseGuideHash(startHash); openGuide(g.chapter, false, g.style); }
   updateLabels();
   restart(true);
   relayout();

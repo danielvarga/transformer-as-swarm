@@ -1,0 +1,6 @@
+These fonts are subsets of New Computer Modern 8.1.1 by Antonis Tsolomitis,
+distributed under the GUST Font License (https://www.gust.org.pl/projects/e-foundry/licenses).
+They were subset to the characters this page uses and converted to WOFF2, and are
+therefore served under the renamed families "Murmuration CM" and "Murmuration CM Math".
+Original fonts: https://ctan.org/pkg/newcomputermodern
+Files: NewCM10-Book, NewCM10-BookItalic, NewCM10-Bold, NewCMMath-Book.

@@ -102,9 +102,10 @@ The dynamics are permutation-equivariant and close to mean-field, so a swarm tra
 boids can be run with 256: `python vis.py models/final.pt --n-boids 256`. On an M1 the cost
 is purely the B·H·N² attention tensor, so training small and rendering big is the way to go.
 
-## In the browser
+## In the browser: Murmuration
 
-`web/` runs the trained swarm in plain JavaScript, with no ML library: pick a model, drag the class
+`web/` is **Murmuration**, the trained flock running in plain JavaScript (live at
+https://danielvarga.github.io/transformer-as-swarm/, with a visual guide at `#guide`). It needs no ML library: pick a model, drag the class
 code (between digits too) and the style latent, jitter the starting disk, scrub through the 16 steps,
 or run past them. `web/export_weights.py` writes a swarm (not the encoder) to `web/models/<name>.js`;
 `node web/check.js` compares each port against PyTorch
