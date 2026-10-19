@@ -83,12 +83,22 @@ button { font: inherit; color: inherit; }
 .modes button kbd { font: 500 12px var(--font-data); color: var(--faint); }
 .modes button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 .top .spacer { flex: 1; }
-.top .model { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+/* Model: a compact dropdown, the name only. */
+.model-pick { position: relative; display: inline-flex; align-items: center; }
+.model-pick select {
+  appearance: none; -webkit-appearance: none; font: 500 14px var(--font-body); color: var(--ink); cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 5px 28px 5px 11px; box-shadow: var(--shadow);
+}
+.model-pick select:hover { border-color: var(--line-strong); }
+.model-pick svg { position: absolute; right: 9px; pointer-events: none; color: var(--muted); }
 .icon-btn {
   width: 34px; height: 34px; display: grid; place-items: center; border-radius: 7px; cursor: pointer;
   border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-weight: 600;
 }
 .icon-btn:hover { color: var(--ink); border-color: var(--line-strong); }
+.icon-btn svg { display: block; }
+.dl-btn { margin-left: -8px; } /* sits with the mode tabs */
+.dl-btn.done { color: var(--pos); border-color: var(--pos); }
 
 /* ---------- center: stage (and network in Inspect) ---------- */
 .center { grid-area: center; display: flex; gap: 0; min-height: 0; min-width: 0; container-type: size; }
@@ -101,6 +111,7 @@ button { font: inherit; color: inherit; }
 .hud { position: absolute; font: 500 13px var(--font-data); color: var(--muted); pointer-events: none; }
 .hud.tl { top: 12px; left: 14px; } .hud.tr { top: 12px; right: 14px; text-align: right; } .hud.bl { bottom: 12px; left: 14px; right: 14px; color: var(--faint); }
 .hud .busy { color: var(--accent); }
+[data-mode="explore"][data-labels="on"] .hud { display: none; } /* the labels are drawn into the scene instead */
 .hud .digit { font: 700 15px var(--font-display); color: var(--ink); letter-spacing: -0.01em; }
 
 .net-pane { display: none; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; padding: 20px 20px 16px 0; }
@@ -137,8 +148,21 @@ input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
 .side { grid-area: side; border-left: 1px solid var(--line); background: var(--surface); overflow-y: auto; min-height: 0; }
 .inspector { display: none; }
 [data-mode="explore"] .inspector[data-for="explore"],
-[data-mode="inspect"] .inspector[data-for="inspect"],
-[data-mode="design"] .inspector[data-for="design"] { display: block; }
+[data-mode="inspect"] .inspector[data-for="inspect"] { display: block; }
+/* Foldable groups in the inspector, with a header that stays in view while scrolling. */
+.fold { border-bottom: 1px solid var(--line); }
+.fold > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  font: 600 13px var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  background: var(--chrome); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2;
+}
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary:hover { color: var(--ink); }
+.fold > summary .chev { transition: transform 0.15s ease; flex: none; }
+.fold[open] > summary .chev { transform: rotate(90deg); }
+.fold > summary .val { margin-left: auto; text-transform: none; letter-spacing: 0; font: 500 12px var(--font-data); color: var(--faint); }
+.fold:not([open]) > summary { border-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .fold > summary .chev { transition: none; } }
 .section { padding: 16px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
 .section:last-child { border-bottom: 0; }
 .section h3 {
@@ -173,7 +197,19 @@ input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
 .jit input[type="range"] { flex: 1; min-width: 0; }
 .sub { font: 500 13px var(--font-data); color: var(--muted); font-variant-numeric: tabular-nums; }
 input[type="color"] { width: 44px; height: 30px; padding: 0 2px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised); cursor: pointer; }
-.opts .single-only[hidden] { display: none !important; }
+.opts .single-only[hidden], .opts .grad-only[hidden] { display: none !important; }
+.opts .full { grid-column: 1 / -1; }
+/* Gradient picker: a grid of swatches, each a live preview of the banded gradient. */
+.palettes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.palettes button {
+  display: grid; gap: 6px; padding: 6px; border-radius: 9px; border: 1px solid var(--line); background: var(--raised);
+  cursor: pointer; text-align: left; color: var(--muted); font: 500 12.5px var(--font-body);
+}
+.palettes button:hover { border-color: var(--line-strong); color: var(--ink); }
+.palettes button[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); color: var(--ink); }
+.palettes .bar { height: 22px; border-radius: 5px; display: block; }
+.palettes .bar.dots { height: 22px; background: none !important; display: flex; align-items: center; justify-content: space-between; padding-inline: 2px; }
+.palettes .bar.dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
 
 .cell { margin: 0; display: grid; gap: 8px; }
 .cell canvas { width: 100%; max-width: 100%; display: block; }
@@ -341,10 +377,14 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     <nav class="modes" role="tablist" aria-label="Mode">
       <button role="tab" id="tab-explore" data-mode="explore" aria-selected="true">Explore <kbd>E</kbd></button>
       <button role="tab" id="tab-inspect" data-mode="inspect" aria-selected="false">Inspect <kbd>I</kbd></button>
-      <button role="tab" id="tab-design" data-mode="design" aria-selected="false">Design <kbd>D</kbd></button>
     </nav>
+    <button class="icon-btn dl-btn" id="quickSvg" type="button" aria-label="Download the stage as SVG" title="Download SVG"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.2M4.8 6.8 8 10l3.2-3.2M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <div class="spacer"></div>
-    <div class="model"><span>Model</span><div class="seg" id="segModel"></div></div>
+    <label class="model-pick" title="Model">
+      <span class="sr-only">Model</span>
+      <select id="modelSel"></select>
+      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </label>
     <a class="guide-btn" id="helpBtn" href="#guide"><span class="q" aria-hidden="true">?</span>How it works</a>
   </header>
 
@@ -385,21 +425,8 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   </footer>
 
   <aside class="side" aria-label="Inspector">
-    <!-- Explore: what to draw -->
+    <!-- Explore: the flock up top, then what it draws and how it looks, each foldable -->
     <div class="inspector" data-for="explore">
-      <section class="section">
-        <h3>Digit <span class="val" id="codeOut"></span></h3>
-        <div class="pad-wrap"><canvas id="codePad" class="xy-pad" tabindex="0" aria-label="Class code pad. Click a digit, drag between digits, or use the arrow keys."></canvas></div>
-        <p class="hint">Click a digit, or drag between two to blend them.</p>
-      </section>
-      <section class="section">
-        <h3>Style <span class="val" id="styleOut"></span></h3>
-        <div class="pad-wrap"><canvas id="pad" class="xy-pad" tabindex="0" aria-label="Style latent pad. Drag, or use the arrow keys."></canvas></div>
-        <div class="row">
-          <button class="btn" id="random" type="button">Sample style</button>
-          <button class="btn" id="origin" type="button">Centre</button>
-        </div>
-      </section>
       <section class="section">
         <h3>Swarm</h3>
         <div class="opts">
@@ -413,8 +440,85 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
             <button class="btn" id="reroll" type="button">Reroll</button>
           </div>
         </div>
+        <button class="ghost small" id="resetAll" type="button">Reset all settings</button>
         <p class="hint">Jitter scatters the starting disk off its sunflower grid. Steps past 16 run the block beyond what the original model was trained on.</p>
       </section>
+      <details class="fold" id="foldPrompt" open>
+        <summary><svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 6.5 5 3.5 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Prompt<span class="val">digit · style</span></summary>
+      <section class="section">
+        <h3>Digit <span class="val" id="codeOut"></span></h3>
+        <div class="pad-wrap"><canvas id="codePad" class="xy-pad" tabindex="0" aria-label="Class code pad. Click a digit, drag between digits, or use the arrow keys."></canvas></div>
+        <p class="hint">Click a digit, or drag between two to blend them.</p>
+      </section>
+      <section class="section">
+        <h3>Style <span class="val" id="styleOut"></span></h3>
+        <div class="pad-wrap"><canvas id="pad" class="xy-pad" tabindex="0" aria-label="Style latent pad. Drag, or use the arrow keys."></canvas></div>
+        <div class="row">
+          <button class="btn" id="random" type="button">Sample style</button>
+          <button class="btn" id="origin" type="button">Centre</button>
+        </div>
+      </section>
+      </details>
+      <details class="fold" id="foldDesign" open>
+        <summary><svg class="chev" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 6.5 5 3.5 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Design<span class="val">birds · trails · canvas · export</span></summary>
+      <section class="section">
+        <h3>Birds</h3>
+        <div class="opts">
+          <span>Dots</span>
+          <div class="seg" id="segDots"></div>
+          <span>Shape</span>
+          <div class="seg" id="segShape"></div>
+          <span>Size</span>
+          <div class="jit"><input type="range" id="dotSize" min="0.3" max="3" step="0.05" value="1" aria-label="Dot size"><span class="sub" id="dotSizeOut"></span></div>
+          <span>Colour</span>
+          <div class="seg" id="segColor"></div>
+          <div class="grad-only full">
+            <div class="palettes" id="palettes" role="radiogroup" aria-label="Gradient"></div>
+          </div>
+          <span class="grad-only">Colours</span>
+          <div class="jit grad-only"><input type="range" id="bands" min="2" max="13" step="1" value="6" aria-label="Number of colours"><span class="sub" id="bandsOut"></span></div>
+          <span class="grad-only">Spread</span>
+          <div class="seg grad-only" id="segSpread"></div>
+          <span class="single-only">Pick</span>
+          <div class="jit single-only"><input type="color" id="dotColor" value="#3a4cd6" aria-label="Dot colour"><span class="sub" id="dotColorOut"></span></div>
+        </div>
+      </section>
+      <section class="section">
+        <h3>Trails</h3>
+        <div class="opts">
+          <span>Length</span>
+          <div class="jit"><input type="range" id="trailLen" min="0" max="17" step="1" value="0" aria-label="Trail length in steps"><span class="sub" id="trailLenOut"></span></div>
+          <span>Opacity</span>
+          <div class="jit"><input type="range" id="trailAlpha" min="0.05" max="1" step="0.05" value="0.35" aria-label="Trail opacity"><span class="sub" id="trailAlphaOut"></span></div>
+        </div>
+      </section>
+      <section class="section">
+        <h3>Canvas</h3>
+        <div class="opts">
+          <span>Ink</span>
+          <div class="seg" id="segInk"></div>
+          <span>Grid</span>
+          <div class="seg" id="segGrid"></div>
+          <span>Frame</span>
+          <div class="seg" id="segFrame"></div>
+          <span>Start disk</span>
+          <div class="seg" id="segDisk"></div>
+          <span>Background</span>
+          <div class="seg" id="segBg"></div>
+          <span>Labels</span>
+          <div class="seg" id="segLabels"></div>
+        </div>
+        <p class="hint">Ink renders the swarm the way the loss sees it: splatted onto the 28 × 28 MNIST grid. Labels print the digit, step and model onto the stage, and export as editable SVG text.</p>
+      </section>
+      <section class="section">
+        <h3>Export <span class="val" id="exportOut"></span></h3>
+        <div class="row">
+          <button class="btn primary" id="exportSvg" type="button">Export SVG</button>
+          <button class="btn" id="copySvg" type="button">Copy SVG</button>
+        </div>
+        <p class="hint">The stage exactly as shown, at the current step, as a 1000 × 1000 vector file.</p>
+      </section>
+      </details>
     </div>
 
     <!-- Inspect: one boid through the block -->
@@ -440,55 +544,6 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       </section>
     </div>
 
-    <!-- Design: how it looks, and export -->
-    <div class="inspector" data-for="design">
-      <section class="section">
-        <h3>Birds</h3>
-        <div class="opts">
-          <span>Dots</span>
-          <div class="seg" id="segDots"></div>
-          <span>Size</span>
-          <div class="jit"><input type="range" id="dotSize" min="0.3" max="3" step="0.05" value="1" aria-label="Dot size"><span class="sub" id="dotSizeOut"></span></div>
-          <span>Colour</span>
-          <div class="seg" id="segColor"></div>
-          <span class="single-only">Pick</span>
-          <div class="jit single-only"><input type="color" id="dotColor" value="#3a4cd6" aria-label="Dot colour"><span class="sub" id="dotColorOut"></span></div>
-        </div>
-      </section>
-      <section class="section">
-        <h3>Trails</h3>
-        <div class="opts">
-          <span>Length</span>
-          <div class="seg" id="segTrails"></div>
-          <span>Opacity</span>
-          <div class="jit"><input type="range" id="trailAlpha" min="0.05" max="1" step="0.05" value="0.35" aria-label="Trail opacity"><span class="sub" id="trailAlphaOut"></span></div>
-        </div>
-      </section>
-      <section class="section">
-        <h3>Canvas</h3>
-        <div class="opts">
-          <span>Ink</span>
-          <div class="seg" id="segInk"></div>
-          <span>Grid</span>
-          <div class="seg" id="segGrid"></div>
-          <span>Frame</span>
-          <div class="seg" id="segFrame"></div>
-          <span>Start disk</span>
-          <div class="seg" id="segDisk"></div>
-          <span>Background</span>
-          <div class="seg" id="segBg"></div>
-        </div>
-        <p class="hint">Ink renders the swarm the way the loss sees it: splatted onto the 28 × 28 MNIST grid.</p>
-      </section>
-      <section class="section">
-        <h3>Export <span class="val" id="exportOut"></span></h3>
-        <div class="row">
-          <button class="btn primary" id="exportSvg" type="button">Export SVG</button>
-          <button class="btn" id="copySvg" type="button">Copy SVG</button>
-        </div>
-        <p class="hint">The stage exactly as shown, at the current step, as a 1000 × 1000 vector file.</p>
-      </section>
-    </div>
   </aside>
 </div>
 
@@ -525,12 +580,44 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const S = {
-    model: MODELS[MODELS.length - 1].name, jitter: 0, code: [0, 0],
+    model: MODELS[MODELS.length - 1].name, jitter: 0, jitterSeed: 1, code: [0, 0],
     label: 7, style: [0.6, -0.4], n: 128, steps: 16, speed: 4,
-    dots: "on", dotSize: 1, color: "origin", single: "#3a4cd6", trails: "off", trailAlpha: 0.35, ink: "off",
+    dots: "on", shape: "filled", dotSize: 1, color: "origin", palette: "starling", bands: 6, spread: "ring", single: "#3a4cd6", trailLen: 0, labels: "off", trailAlpha: 0.35, ink: "off",
     grid: "on", frame: "on", disk: "on", follow: "on", bg: "theme",
     t: 0, playing: !reduceMotion,
   };
+
+  // ---------- remembered settings (kept in this browser only) ----------
+  const SAVE_KEY = "murmuration-settings";
+  const SAVED = ["model", "label", "code", "style", "n", "steps", "speed", "jitter", "jitterSeed", "dots", "shape", "dotSize", "color", "palette",
+    "bands", "spread", "single", "trailLen", "labels", "trailAlpha", "ink", "grid", "frame", "disk", "follow", "bg"];
+  const pickSaved = () => Object.fromEntries(SAVED.map((k) => [k, S[k]]));
+  let restoredCode = false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
+    for (const k of SAVED) {
+      const v = saved[k];
+      if (v === undefined || typeof v !== typeof S[k] || Array.isArray(v) !== Array.isArray(S[k])) continue;
+      if (typeof v === "number" && !Number.isFinite(v)) continue;
+      S[k] = v;
+    }
+    restoredCode = Array.isArray(saved.code) && saved.code.length === 2;
+  } catch (e) {}
+  if (!MODELS.some((m) => m.name === S.model)) S.model = MODELS[MODELS.length - 1].name;
+  if (![64, 128, 256, 512].includes(S.n)) S.n = 128;
+  if (![16, 32, 64, 128, 256].includes(S.steps)) S.steps = 16;
+  if (!(S.label >= 0 && S.label <= 9)) S.label = 7;
+  model = load(S.model);
+  let lastSaved = JSON.stringify(pickSaved()), saving = true;
+  const saveSettings = () => {
+    if (!saving) return;
+    const snap = JSON.stringify(pickSaved());
+    if (snap === lastSaved) return;
+    lastSaved = snap;
+    try { localStorage.setItem(SAVE_KEY, snap); } catch (e) {}
+  };
+  setInterval(saveSettings, 800);
+  window.addEventListener("pagehide", saveSettings);
 
   // ---------- simulation: one step at a time, inside a per-frame time budget ----------
   let live = null;   // the run being computed
@@ -547,12 +634,38 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       x[i * D + 1] += S.jitter * eps[2 * i + 1];
       init[2 * i] = x[i * D]; init[2 * i + 1] = x[i * D + 1];
     }
-    return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, x, traj: [x.slice()], init };
+    const key = runKey(), cached = runCache.get(key);
+    if (cached) {
+      runCache.delete(key); runCache.set(key, cached); // most recently used
+      const traj = cached.slice(0, S.steps + 1);
+      return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, key, x: traj[traj.length - 1].slice(), traj, init };
+    }
+    return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, key, x, traj: [x.slice()], init };
   }
-  let noise = {};
+  // Seeded noise (mulberry32 + Box-Muller): the same seed always gives the same jitter.
+  const rng = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const noise = {};
   function noiseFor(n) {
-    if (!noise[n]) noise[n] = Float64Array.from({ length: 2 * n }, gauss);
-    return noise[n];
+    const k = n + "|" + S.jitterSeed;
+    if (!noise[k]) {
+      const r = rng(S.jitterSeed * 9973 + n);
+      noise[k] = Float64Array.from({ length: 2 * n }, () => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); });
+    }
+    return noise[k];
+  }
+
+  // Finished runs are kept in memory, so returning to a digit, style or setting is instant.
+  const runCache = new Map(); // key -> trajectory (array of states); insertion order = recency
+  const CACHE_FLOATS = 8e6;   // about 64 MB of states
+  const runKey = () => [S.model, S.n, ...S.code.map((v) => v.toFixed(5)), ...S.style.map((v) => v.toFixed(5)), S.jitter.toFixed(4), S.jitter ? S.jitterSeed : 0].join("|");
+  function remember(r) {
+    const prev = runCache.get(r.key);
+    if (prev && prev.length >= r.traj.length) { runCache.delete(r.key); runCache.set(r.key, prev); return; }
+    runCache.delete(r.key);
+    runCache.set(r.key, r.traj.slice());
+    let total = 0;
+    for (const t of runCache.values()) total += t.length * t[0].length;
+    for (const [k, t] of runCache) { if (total <= CACHE_FLOATS || runCache.size <= 1) break; total -= t.length * t[0].length; runCache.delete(k); }
   }
   const done = (r) => r.traj.length - 1 >= r.steps;
 
@@ -576,6 +689,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       live.traj.push(live.x.slice());
     }
     if (done(live)) {
+      remember(live);
       if (pending) { shown = live; live = newRun(); pending = false; }
       else shown = null;
     }
@@ -638,6 +752,36 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   const px = (x) => ((x + EXT) / (2 * EXT)) * vsize;
   const py = (y) => ((EXT - y) / (2 * EXT)) * vsize;
 
+  // Gradients for the "gradient" colour mode: hand-picked stops, dark to light.
+  const PALETTES_G = {
+    rainbow: { name: "Rainbow", stops: ["#e6194b", "#f58231", "#ffd60a", "#3cb44b", "#00b4d8", "#4363d8", "#911eb4"] },
+    prism: { name: "Prism", stops: ["#ff9aa2", "#ffc89a", "#fff1a8", "#b5ead7", "#a0d8f1", "#b8b8ff", "#e2b6ff"] },
+    starling: { name: "Starling", stops: ["#14213d", "#2b4c7e", "#1f8a8a", "#79b473", "#e9d985"] },
+    dusk: { name: "Dusk", stops: ["#2d1b4e", "#6b2d6b", "#c0436b", "#f2885a", "#f9d58b"] },
+    ocean: { name: "Ocean", stops: ["#03045e", "#023e8a", "#0077b6", "#48cae4", "#caf0f8"] },
+    ember: { name: "Ember", stops: ["#2b0a0a", "#7f1d1d", "#c2410c", "#f59e0b", "#fde68a"] },
+    moss: { name: "Moss", stops: ["#1b2a1e", "#344e2c", "#5f7f3a", "#a3b86c", "#e8efc0"] },
+    aurora: { name: "Aurora", stops: ["#0b132b", "#3a506b", "#5bc0be", "#9bf6a3", "#f3ffb6"] },
+    viridis: { name: "Viridis", stops: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"] },
+    ink: { name: "Ink", stops: ["#111317", "#3d434d", "#7c838f", "#bfc4cc", "#eef0f3"] },
+  };
+  const SMOOTH = 13; // the slider's last notch means a continuous gradient
+  function gradAt(stops, t) {
+    t = Math.max(0, Math.min(1, t));
+    const f = t * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(f)), u = f - i;
+    const a = hexRGB(stops[i]), b = hexRGB(stops[i + 1]);
+    return `rgb(${[0, 1, 2].map((k) => Math.round(a[k] + (b[k] - a[k]) * u)).join(",")})`;
+  }
+  // Quantise to the chosen number of colours, sampling each band at its own centre of the gradient.
+  const bandT = (t, bands) => (bands >= SMOOTH ? t : Math.min(bands - 1, Math.floor(t * bands)) / (bands - 1));
+  const paletteColor = (t) => gradAt(PALETTES_G[S.palette].stops, bandT(t, S.bands));
+  // A bird's place in the gradient comes from its starting seat, so the bands carry into the digit.
+  function spreadT(x0, y0) {
+    if (S.spread === "angle") return (Math.atan2(y0, x0) + Math.PI) / (2 * Math.PI);
+    if (S.spread === "x") return (x0 + 0.95) / 1.9;
+    return Math.min(1, Math.hypot(x0, y0) / 0.92);
+  }
+
   // The stage is drawn as a scene through a "pen", so the canvas and the SVG export are the same picture.
   function canvasPen(c) {
     const style = (o) => {
@@ -656,6 +800,10 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
         c.globalAlpha = 1; c.setLineDash([]);
       },
       rect(x, y, w, h, o) { style(o); if (o.fill) { c.fillStyle = o.fill; c.fillRect(x, y, w, h); } if (o.stroke) { c.strokeStyle = o.stroke; c.strokeRect(x, y, w, h); } c.globalAlpha = 1; },
+      text(x, y, str, o) {
+        style(o); c.font = `${o.weight || 500} ${o.size}px ${o.family}`; c.fillStyle = o.fill; c.textAlign = o.align || "left";
+        c.fillText(str, x, y); c.textAlign = "left"; c.globalAlpha = 1;
+      },
     };
   }
   function svgPen() {
@@ -674,6 +822,12 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       polyline(pts, o) { out.push(`<polyline points="${pts.map(([a, b]) => `${r2(a)},${r2(b)}`).join(" ")}"${attrs(o)} stroke-linejoin="round"/>`); },
       circle(x, y, r, o) { out.push(`<circle cx="${r2(x)}" cy="${r2(y)}" r="${r2(r)}"${attrs(o, true)}/>`); },
       rect(x, y, w, h, o) { out.push(`<rect x="${r2(x)}" y="${r2(y)}" width="${r2(w)}" height="${r2(h)}"${attrs(o, true)}/>`); },
+      // Real <text>: stays sharp and editable in vector editors.
+      text(x, y, str, o) {
+        const esc = String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const anchor = { left: "start", center: "middle", right: "end" }[o.align || "left"];
+        out.push(`<text x="${r2(x)}" y="${r2(y)}" font-family="${o.family.replace(/"/g, "'")}" font-size="${r2(o.size)}" font-weight="${o.weight || 500}" fill="${o.fill}" text-anchor="${anchor}"${(o.alpha ?? 1) < 1 ? ` opacity="${r2(o.alpha)}"` : ""}>${esc}</text>`);
+      },
     };
   }
 
@@ -706,6 +860,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
     const colorOf = (i) => {
       if (S.color === "single") return S.single;
+      if (S.color === "gradient") return paletteColor(spreadT(run.init[2 * i], run.init[2 * i + 1]));
       if (S.color === "style") return divergeColor(x[i * D + 4]);
       // vis.py's colormap over the initial disk: same boid, same colour, in every figure.
       const r = (run.init[2 * i] + 1) / 2, g = (run.init[2 * i + 1] + 1) / 2, b = Math.min(1, 1 - (0.5 * (r + g)) / 2), k = 255 * pal.gain;
@@ -731,8 +886,8 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       }
     }
 
-    if (S.trails !== "off" && st.t > 0) {
-      const upto = Math.floor(st.t), from = S.trails === "short" ? Math.max(0, upto - 3) : 0;
+    if (S.trailLen > 0 && st.t > 0) {
+      const upto = Math.floor(st.t), from = S.trailLen > S.steps ? 0 : Math.max(0, upto - S.trailLen + 1);
       for (let i = 0; i < n; i++) {
         const pts = [];
         for (let k = from; k <= upto; k++) { const s = run.traj[k]; pts.push([X(s[i * D]), Y(s[i * D + 1])]); }
@@ -743,7 +898,20 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
     if (S.dots === "on") {
       const rad = Math.max(0.8, Math.min(14, size * 0.0105 * Math.sqrt(128 / n) * S.dotSize));
-      for (let i = 0; i < n; i++) pen.circle(X(x[i * D]), Y(x[i * D + 1]), rad, { fill: colorOf(i) });
+      const ring = S.shape === "ring", lw = Math.max(0.8, rad * 0.32);
+      for (let i = 0; i < n; i++) {
+        const col = colorOf(i);
+        pen.circle(X(x[i * D]), Y(x[i * D + 1]), ring ? rad * 1.15 : rad, ring ? { stroke: col, width: lw } : { fill: col });
+      }
+    }
+
+    // Labels: digit, step, model and flock size, drawn into the scene so they export as SVG text.
+    if (S.labels === "on") {
+      const fam = css().getPropertyValue("--font-body").trim(), m = size * 0.035, fs = size * 0.022;
+      const [u, v] = model.codes[S.label], exact = Math.hypot(S.code[0] - u, S.code[1] - v) < 1e-9;
+      pen.text(m, m + fs * 1.6, exact ? `digit ${S.label}` : `near ${S.label}`, { family: fam, size: fs * 1.6, weight: 700, fill: pal.ink });
+      pen.text(m, m + fs * 3.2, `t = ${st.t.toFixed(1)}`, { family: fam, size: fs, fill: pal.muted });
+      pen.text(size - m, size - m, `Murmuration · ${MODELS.find((q) => q.name === S.model).title} model · ${n} birds`, { family: fam, size: fs, fill: pal.muted, align: "right" });
     }
 
     // The followed bird: lines to the birds it attends to more than an even split, per head, and a ring around it.
@@ -1135,13 +1303,19 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   }
   document.getElementById("random").addEventListener("click", sampleStyle);
   const jitterIn = document.getElementById("jitter");
+  jitterIn.value = S.jitter;
   jitterIn.addEventListener("input", () => { S.jitter = +jitterIn.value; restart(false); updateLabels(); });
   document.getElementById("reroll").addEventListener("click", () => {
-    noise = {};
+    S.jitterSeed++;
     if (S.jitter === 0) { S.jitter = 0.05; jitterIn.value = S.jitter; }
     restart(false); updateLabels();
   });
   document.getElementById("origin").addEventListener("click", () => setStyle(0, 0));
+  document.getElementById("resetAll").addEventListener("click", () => {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    saving = false;
+    location.reload();
+  });
   function sampleStyle() { setStyle(gauss(), gauss()); }
 
   // ---------- controls ----------
@@ -1158,14 +1332,41 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     const sync = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v == S[key])));
     sync();
   }
-  segmented("segModel", MODELS.map((m) => [m.name, m.title]), "model", () => { model = load(S.model); restart(true); updateLabels(); });
+  const modelSel = document.getElementById("modelSel");
+  modelSel.innerHTML = MODELS.map((m) => `<option value="${m.name}" title="${m.note.replace(/"/g, "&quot;")}">${m.title}</option>`).join("");
+  modelSel.value = S.model;
+  modelSel.addEventListener("change", () => { S.model = modelSel.value; model = load(S.model); restart(true); updateLabels(); });
   segmented("segN", [[64, "64"], [128, "128"], [256, "256"], [512, "512"]], "n", () => restart(true));
   segmented("segSteps", [[16, "16"], [32, "32"], [64, "64"], [128, "128"], [256, "256"]], "steps", setSteps);
   segmented("segSpeed", [[2, "½×"], [4, "1×"], [10, "2.5×"], [40, "10×"]], "speed");
   const onOff = [["on", "on"], ["off", "off"]];
   segmented("segDots", onOff, "dots");
-  segmented("segColor", [["origin", "start"], ["style", "s₁ now"], ["single", "single"]], "color", syncDisplay);
-  segmented("segTrails", [["off", "off"], ["short", "short"], ["full", "full"]], "trails");
+  segmented("segColor", [["origin", "start"], ["gradient", "gradient"], ["style", "s₁"], ["single", "single"]], "color", syncDisplay);
+  segmented("segSpread", [["ring", "centre → rim"], ["angle", "around"], ["x", "left → right"]], "spread");
+  // The gradient picker: one swatch per palette, previewing the current number of colours.
+  const palEl = document.getElementById("palettes");
+  palEl.innerHTML = Object.entries(PALETTES_G).map(([k, p]) => `<button type="button" role="radio" data-p="${k}"><span class="bar"></span>${p.name}</button>`).join("");
+  function paintSwatches() {
+    palEl.querySelectorAll("button").forEach((b) => {
+      const stops = PALETTES_G[b.dataset.p].stops, bar = b.querySelector(".bar");
+      if (S.bands >= SMOOTH) bar.style.background = `linear-gradient(90deg, ${stops.join(", ")})`;
+      else {
+        const seg = Array.from({ length: S.bands }, (_, i) => { const c = gradAt(stops, i / (S.bands - 1)); return `${c} ${(i / S.bands) * 100}% ${((i + 1) / S.bands) * 100}%`; });
+        bar.style.background = `linear-gradient(90deg, ${seg.join(", ")})`;
+      }
+      b.setAttribute("aria-checked", String(b.dataset.p === S.palette));
+    });
+  }
+  palEl.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { S.palette = b.dataset.p; paintSwatches(); } });
+  palEl.addEventListener("keydown", (e) => {
+    const keys = Object.keys(PALETTES_G), i = keys.indexOf(S.palette), d = { ArrowRight: 1, ArrowDown: 2, ArrowLeft: -1, ArrowUp: -2 }[e.key];
+    if (d == null) return;
+    e.preventDefault(); S.palette = keys[(i + d + keys.length) % keys.length]; paintSwatches();
+    palEl.querySelector(`[data-p="${S.palette}"]`).focus();
+  });
+
+  segmented("segShape", [["filled", "filled"], ["ring", "ring"]], "shape");
+  segmented("segLabels", [["off", "off"], ["on", "on"]], "labels", () => { app.dataset.labels = S.labels; });
   segmented("segInk", [["off", "off"], ["on", "28×28"]], "ink");
   segmented("segGrid", onOff, "grid");
   segmented("segFrame", onOff, "frame");
@@ -1174,16 +1375,33 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   segmented("segBg", [["theme", "page"], ["white", "white"], ["black", "black"], ["none", "none"]], "bg");
   const bindRange = (id, key, fmt) => {
     const el = document.getElementById(id), out = document.getElementById(id + "Out");
+    el.value = S[key];
     const show = () => { out.textContent = fmt(S[key]); };
     el.addEventListener("input", () => { S[key] = +el.value; show(); });
     show();
   };
   bindRange("dotSize", "dotSize", (v) => `${v.toFixed(2)}×`);
   bindRange("trailAlpha", "trailAlpha", (v) => `${Math.round(v * 100)}%`);
+  bindRange("trailLen", "trailLen", (v) => (v === 0 ? "off" : v > S.steps ? "all" : `${v} step${v > 1 ? "s" : ""}`));
+  // The trail slider spans the current run: 0 = off, 1 … steps, and one notch past the end = the whole path.
+  let trailStepsSeen = S.steps;
+  function syncTrailRange(oldSteps) {
+    const el = document.getElementById("trailLen");
+    const wasAll = S.trailLen > oldSteps;
+    el.max = S.steps + 1;
+    S.trailLen = wasAll ? S.steps + 1 : Math.min(S.trailLen, S.steps + 1);
+    el.value = S.trailLen;
+    el.dispatchEvent(new Event("input"));
+  }
+  bindRange("bands", "bands", (v) => (v >= SMOOTH ? "smooth" : `${v}`));
+  document.getElementById("bands").addEventListener("input", paintSwatches);
+  paintSwatches();
   const colorIn = document.getElementById("dotColor");
+  colorIn.value = S.single;
   colorIn.addEventListener("input", () => { S.single = colorIn.value; syncDisplay(); });
   function syncDisplay() {
     document.querySelectorAll(".single-only").forEach((el) => { el.hidden = S.color !== "single"; });
+    document.querySelectorAll(".grad-only").forEach((el) => { el.hidden = S.color !== "gradient"; });
     $("dotColorOut").textContent = S.single;
   }
 
@@ -1191,20 +1409,29 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   const downloadsP = window.claude?.use ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
   const exportOut = document.getElementById("exportOut");
   const flash = (msg) => { exportOut.textContent = msg; clearTimeout(flash.t); flash.t = setTimeout(() => (exportOut.textContent = ""), 4000); };
-  document.getElementById("exportSvg").addEventListener("click", async () => {
-    if (!lastDrawn) return;
+  // Save the stage as SVG. Resolves true when the file was handed over.
+  async function exportSVG() {
+    if (!lastDrawn) return false;
     const svg = sceneSVG(), name = `murmuration-${S.label}-t${lastDrawn.st.t.toFixed(1)}.svg`;
     const dl = await downloadsP;
     if (dl) {
-      try { await dl.save({ filename: name, data: svg }); flash("Saved"); }
-      catch (e) { flash(e && e.code === "declined" ? "Not saved" : "Saving isn't available here. Use Copy SVG."); }
-      return;
+      try { await dl.save({ filename: name, data: svg }); flash("Saved"); return true; }
+      catch (e) { flash(e && e.code === "declined" ? "Not saved" : "Saving isn't available here. Use Copy SVG."); return false; }
     }
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: name });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     flash(`Saved ${name}`);
+    return true;
+  }
+  document.getElementById("exportSvg").addEventListener("click", exportSVG);
+  // The download icon by the mode tabs: same export, from any mode, with a brief check mark when done.
+  const quick = document.getElementById("quickSvg");
+  quick.addEventListener("click", async () => {
+    if (!(await exportSVG())) return;
+    quick.classList.add("done"); quick.title = "Saved";
+    setTimeout(() => { quick.classList.remove("done"); quick.title = "Download SVG"; }, 1600);
   });
   document.getElementById("copySvg").addEventListener("click", () => {
     if (!lastDrawn) return;
@@ -1213,6 +1440,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
   // More steps extend the current run instead of recomputing it.
   function setSteps() {
+    syncTrailRange(trailStepsSeen); trailStepsSeen = S.steps;
     for (const r of [live, shown]) {
       if (!r) continue;
       r.steps = S.steps;
@@ -1335,7 +1563,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
         <span><kbd>0</kbd>–<kbd>9</kbd>pick a digit</span>
         <span><kbd>space</kbd>play or pause</span>
         <span><kbd>S</kbd>sample a style</span>
-        <span><kbd>E</kbd><kbd>I</kbd><kbd>D</kbd>switch mode</span>
+        <span><kbd>E</kbd><kbd>I</kbd>switch mode · <kbd>D</kbd> design</span>
         <span><kbd>←</kbd><kbd>→</kbd>step through time</span>
         <span><kbd>?</kbd>this guide</span>
       </div>`;
@@ -1551,9 +1779,11 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     for (let i = 0; i < 784; i++) { diff[i] = pred[i] - tgt[i]; num += diff[i] ** 2; den += tgt[i] ** 2; }
     return { diff, loss: num / den };
   }
+  const guideCache = new Map(); // key -> the figures' data, once complete
   function computeGuide() {
     const key = [S.model, ...S.code.map((v) => v.toFixed(3)), ...S.style.map((v) => v.toFixed(3))].join("|");
     if (key === G.key) return;
+    if (guideCache.has(key)) { G.key = key; G.d = guideCache.get(key); G.gen++; drawGuide(); return; }
     G.key = key; G.d = {};
     const gen = ++G.gen, lab = S.label, nxt = (lab + 1) % 10, code = S.code.slice(), style = S.style.slice();
     const tasks = [
@@ -1575,6 +1805,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       const t0 = performance.now();
       while (i < tasks.length && performance.now() - t0 < 24) tasks[i++]().forEach(drawFig);
       if (i < tasks.length) setTimeout(tick, 0);
+      else { guideCache.set(key, G.d); if (guideCache.size > 6) guideCache.delete(guideCache.keys().next().value); }
     };
     tick();
   }
@@ -1951,8 +2182,14 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
   // ---------- modes, help sheet ----------
   const app = document.getElementById("app");
-  const MODES = ["explore", "inspect", "design"];
-  const HINTS = { explore: "Drag on the pads to reshape the digit", inspect: "Click a bird to follow it through the network", design: "What you see here is what exports" };
+  const MODES = ["explore", "inspect"];
+  const HINTS = { explore: "Drag on the pads to reshape the digit. What you see is what exports", inspect: "Click a bird to follow it through the network" };
+  // Design is a fold inside Explore now: open it and bring it into view.
+  function showDesign() {
+    const f = $("foldDesign");
+    f.open = true;
+    requestAnimationFrame(() => f.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" }));
+  }
   function setMode(m) {
     if (!MODES.includes(m)) m = "explore";
     app.dataset.mode = m;
@@ -1973,7 +2210,8 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     if (!guideEl.hidden) { if (e.key === "Escape") closeGuide(); return; }
     if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
-    if (k === "e" || k === "i" || k === "d") return setMode({ e: "explore", i: "inspect", d: "design" }[k]);
+    if (k === "e" || k === "i") return setMode(k === "e" ? "explore" : "inspect");
+    if (k === "d") { setMode("explore"); return showDesign(); }
     if (e.key === "?") return openGuide();
     if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.target.classList?.contains("xy-pad")) {
       e.preventDefault(); S.playing = false;
@@ -2041,12 +2279,22 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
   readTokens();
   buildTicks();
-  S.code = model.codes[S.label].slice();
+  if (!restoredCode) S.code = model.codes[S.label].slice();
+  syncTrailRange(S.steps);
   syncDisplay();
+  app.dataset.labels = S.labels;
   const startHash = location.hash.slice(1);
   let startMode = startHash;
-  if (!MODES.includes(startMode)) { try { startMode = localStorage.getItem("murmuration-mode"); } catch (e) {} }
-  setMode(startMode);
+  if (!MODES.includes(startMode) && startMode !== "design") { try { startMode = localStorage.getItem("murmuration-mode"); } catch (e) {} }
+  const wantDesign = startMode === "design";
+  setMode(wantDesign ? "explore" : startMode);
+  // Folds remember whether they are open.
+  for (const id of ["foldPrompt", "foldDesign"]) {
+    const f = $(id);
+    try { const v = localStorage.getItem("murmuration-" + id); if (v) f.open = v === "open"; } catch (e) {}
+    f.addEventListener("toggle", () => { try { localStorage.setItem("murmuration-" + id, f.open ? "open" : "closed"); } catch (e) {} });
+  }
+  if (wantDesign) showDesign();
   buildGuide();
   if (guideHash(startHash)) { const g = parseGuideHash(startHash); openGuide(g.chapter, false, g.style); }
   updateLabels();
