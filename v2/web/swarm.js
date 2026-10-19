@@ -130,6 +130,64 @@
       return x;
     }
 
+    // Everything one block application does to boid i in state x, without changing x:
+    // its input, each head's attention over the swarm, the flocking move, the FFN's hidden
+    // activations (after GELU), the raw FFN output and the alone-time move. flock + solo is exactly the step.
+    inspect(x, n, i) {
+      const d = this.d, H = this.nhead, W = this.qkv, sc = this.scale, mask = this.mask;
+      const proj = (s, h, b) => {
+        const o = new Float64Array(d);
+        for (let j = 0; j < d; j++) {
+          const row = ((s * H + h) * d + j) * d;
+          let acc = 0;
+          for (let c = 0; c < d; c++) acc += W[row + c] * x[b * d + c];
+          o[j] = acc;
+        }
+        return o;
+      };
+      const msg = new Float64Array(d), attn = [];
+      for (let h = 0; h < H; h++) {
+        const q = proj(0, h, i), a = new Float64Array(n), vs = [];
+        let mx = -Infinity;
+        for (let b = 0; b < n; b++) {
+          const k = proj(1, h, b);
+          let s = 0;
+          for (let c = 0; c < d; c++) s += q[c] * k[c];
+          a[b] = s;
+          if (s > mx) mx = s;
+          vs.push(proj(2, h, b));
+        }
+        let z = 0;
+        for (let b = 0; b < n; b++) z += (a[b] = Math.exp(a[b] - mx));
+        for (let b = 0; b < n; b++) {
+          a[b] /= z;
+          for (let c = 0; c < d; c++) msg[c] += (a[b] * vs[b][c]) / H;
+        }
+        attn.push(a);
+      }
+      const input = x.slice(i * d, i * d + d), flock = new Float64Array(d);
+      for (let j = 0; j < d; j++) {
+        let acc = this.outB[j];
+        for (let c = 0; c < d; c++) acc += this.outW[j * d + c] * msg[c];
+        flock[j] = sc * acc * mask[j];
+      }
+      const mid = Float64Array.from(input, (v, j) => v + flock[j]);
+      let a = mid;
+      const hidden = [], last = this.ffn.length - 1;
+      for (let li = 0; li <= last; li++) {
+        const L = this.ffn[li], b = new Float64Array(L.nout);
+        for (let o = 0; o < L.nout; o++) {
+          let acc = L.b[o];
+          for (let c = 0; c < L.nin; c++) acc += L.w[o * L.nin + c] * a[c];
+          b[o] = li < last ? gelu(acc) : acc;
+        }
+        if (li < last) hidden.push(b);
+        a = b;
+      }
+      const solo = Float64Array.from(a, (v, j) => sc * v * mask[j]);
+      return { input, attn, flock, mid, hidden, out: a, solo };
+    }
+
     // Full trajectory: an array of steps+1 states, each a Float64Array(n*d).
     run(n, label, style, steps = this.steps) {
       let x = this.initialState(n, label, style);

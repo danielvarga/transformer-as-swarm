@@ -3,231 +3,432 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;800&family=Chivo+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: an instrument — the square stage on the left, a narrow control column on the right; stacks on phones. */
+/* Layout: a full-screen instrument. Top bar (name, modes, model), the stage in the middle, a mode-specific
+   inspector on the right, the transport along the bottom. Inspect mode splits the middle into stage + network. */
 :root {
-  --paper: #e8ecef;
-  --panel: #f5f7f8;
-  --stage: #fbfcfc;
-  --ink: #17202a;
-  --muted: #5d6874;
-  --line: #c9d1d8;
-  --accent: #2c43c4;
+  --chrome: #f4f4f6;
+  --surface: #ffffff;
+  --stage: #fcfcfd;
+  --raised: #ffffff;
+  --ink: #15171c;
+  --muted: #6a6f7b;
+  --faint: #9a9fa9;
+  --line: #e3e4e8;
+  --line-strong: #cfd1d7;
+  --accent: #3a4cd6;
   --accent-ink: #ffffff;
+  --accent-soft: rgba(58, 76, 214, 0.1);
   --neg: #c2410c;
   --pos: #0f766e;
+  --h2: #b45309;
+  --s-orig: #b45309;
+  --s-stable: #3a4cd6;
+  --shadow: 0 1px 2px rgba(20, 22, 28, 0.06), 0 0 0 1px rgba(20, 22, 28, 0.04);
   --dot-gain: 0.78;
-  --font-display: "Chivo", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Chivo", "Helvetica Neue", Arial, sans-serif;
-  --font-data: "Chivo Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: "Geist", "SF Pro Display", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Geist", "SF Pro Text", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-data: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #11151a; --panel: #181d24; --stage: #0a0d11; --ink: #e2e7ec; --muted: #8b96a2;
-    --line: #2a323c; --accent: #8191ff; --accent-ink: #0b0e14; --neg: #fb923c; --pos: #2dd4bf;
+    --chrome: #0d0e11; --surface: #141519; --stage: #09090b; --raised: #1c1d22;
+    --ink: #e9eaee; --muted: #8b909b; --faint: #5d626c; --line: #23252b; --line-strong: #31343b;
+    --accent: #8d98ff; --accent-ink: #0b0c12; --accent-soft: rgba(141, 152, 255, 0.14);
+    --neg: #fb923c; --pos: #2dd4bf; --h2: #fbbf24; --s-orig: #c27a22; --s-stable: #7682f0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
     --dot-gain: 1; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --paper: #11151a; --panel: #181d24; --stage: #0a0d11; --ink: #e2e7ec; --muted: #8b96a2;
-  --line: #2a323c; --accent: #8191ff; --accent-ink: #0b0e14; --neg: #fb923c; --pos: #2dd4bf;
+  --chrome: #0d0e11; --surface: #141519; --stage: #09090b; --raised: #1c1d22;
+  --ink: #e9eaee; --muted: #8b909b; --faint: #5d626c; --line: #23252b; --line-strong: #31343b;
+  --accent: #8d98ff; --accent-ink: #0b0c12; --accent-soft: rgba(141, 152, 255, 0.14);
+  --neg: #fb923c; --pos: #2dd4bf; --h2: #fbbf24; --s-orig: #c27a22; --s-stable: #7682f0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --dot-gain: 1; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
 body {
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  padding-inline: 16px;
-  padding-block: 20px 40px;
+  margin: 0; background: var(--chrome); color: var(--ink);
+  font: 400 13px/1.45 var(--font-body);
+  -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+button { font: inherit; color: inherit; }
 
-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; }
-h1 {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(1.6rem, 3.2vw, 2.3rem);
-  letter-spacing: -0.02em;
-  line-height: 1.05;
-  margin: 0;
-  text-wrap: balance;
+/* ---------- shell ---------- */
+.app {
+  height: 100%; display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-rows: 48px minmax(0, 1fr) 56px;
+  grid-template-areas: "top top" "center side" "transport side";
 }
-.lede { margin: 0; color: var(--muted); max-width: 62ch; }
-.lede b { color: var(--ink); font-weight: 600; }
+.top {
+  grid-area: top; display: flex; align-items: center; gap: 16px;
+  padding-inline: 16px; border-bottom: 1px solid var(--line); background: var(--chrome); min-width: 0;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; letter-spacing: -0.01em; white-space: nowrap; }
+.brand svg { display: block; }
+.brand small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.modes { display: flex; gap: 2px; padding: 2px; background: var(--line); border-radius: 8px; }
+.modes button {
+  border: 0; background: transparent; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  font-weight: 500; color: var(--muted); display: flex; align-items: center; gap: 8px;
+}
+.modes button kbd { font: 500 10px var(--font-data); color: var(--faint); }
+.modes button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.top .spacer { flex: 1; }
+.top .model { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.icon-btn {
+  width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-weight: 600;
+}
+.icon-btn:hover { color: var(--ink); border-color: var(--line-strong); }
 
-main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
-@media (max-width: 880px) { main { grid-template-columns: minmax(0, 1fr); } }
-
-.stage-col { display: grid; gap: 10px; min-width: 0; justify-items: center; }
+/* ---------- center: stage (and network in Inspect) ---------- */
+.center { grid-area: center; display: flex; gap: 0; min-height: 0; min-width: 0; container-type: size; }
+.stage-wrap { flex: 1 1 auto; display: grid; place-items: center; padding: 20px; min-width: 0; min-height: 0; }
 .stage {
-  position: relative;
-  width: min(100%, calc(100vh - 170px));
-  min-width: min(100%, 320px);
-  aspect-ratio: 1;
-  max-width: 100%;
-  background: var(--stage);
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  position: relative; width: min(100cqw - 40px, 100cqh - 40px); aspect-ratio: 1; max-width: 100%;
+  background: var(--stage); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden;
 }
-.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.stage .tag {
-  position: absolute; top: 10px; left: 12px;
-  font-family: var(--font-data); font-size: 0.75rem; color: var(--muted);
-  pointer-events: none;
-}
-.stage .tag.right { left: auto; right: 12px; text-align: right; }
-.stage .busy { color: var(--accent); }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+.hud { position: absolute; font: 500 11px var(--font-data); color: var(--muted); pointer-events: none; }
+.hud.tl { top: 12px; left: 14px; } .hud.tr { top: 12px; right: 14px; text-align: right; } .hud.bl { bottom: 12px; left: 14px; right: 14px; color: var(--faint); }
+.hud .busy { color: var(--accent); }
+.hud .digit { font: 700 13px var(--font-display); color: var(--ink); letter-spacing: -0.01em; }
 
-.timeline { width: min(100%, calc(100vh - 170px)); min-width: min(100%, 320px); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
-.timeline output { font-family: var(--font-data); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9ch; text-align: right; }
-.track { display: grid; gap: 2px; }
-.ticks { position: relative; height: 14px; font-family: var(--font-data); font-size: 0.65rem; color: var(--muted); }
+.net-pane { display: none; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; padding: 20px 20px 16px 0; }
+[data-mode="inspect"] .stage-wrap { flex: 0 0 auto; width: min(46cqw, 100cqh); padding-right: 16px; }
+[data-mode="inspect"] .stage { width: min(46cqw - 36px, 100cqh - 40px); }
+[data-mode="inspect"] .net-pane { display: flex; flex: 1 1 0; }
+.net-card { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
+.net-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.net-card h2 { margin: 0; font: 600 13px var(--font-body); }
+.net-card .meta { font: 500 11px var(--font-data); color: var(--muted); }
+#netCv { flex: 1; width: 100%; min-height: 0; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); font-size: 12px; }
+.legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; border-radius: 1px; }
+
+/* ---------- transport ---------- */
+.transport {
+  grid-area: transport; display: flex; align-items: center; gap: 14px; padding-inline: 20px;
+  border-top: 1px solid var(--line); background: var(--chrome); min-width: 0;
+}
+.play {
+  width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--ink); color: var(--chrome);
+  display: grid; place-items: center; cursor: pointer; flex: none;
+}
+.play svg { display: block; }
+.track { flex: 1; display: grid; gap: 1px; min-width: 120px; }
+.ticks { position: relative; height: 13px; font: 500 10px var(--font-data); color: var(--faint); }
 .ticks span { position: absolute; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
 .ticks span.trained { color: var(--accent); }
-
 input[type="range"] { width: 100%; accent-color: var(--accent); margin: 0; }
+#stepOut { font: 500 12px var(--font-data); color: var(--ink); font-variant-numeric: tabular-nums; min-width: 11ch; text-align: right; white-space: pre; }
+.transport .opt { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
 
-.panel { display: grid; gap: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 16px; min-width: 0; }
-.group { display: grid; gap: 8px; }
-.label {
-  font-family: var(--font-data); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
-  display: flex; justify-content: space-between; gap: 8px;
+/* ---------- inspector ---------- */
+.side { grid-area: side; border-left: 1px solid var(--line); background: var(--surface); overflow-y: auto; min-height: 0; }
+.inspector { display: none; }
+[data-mode="explore"] .inspector[data-for="explore"],
+[data-mode="inspect"] .inspector[data-for="inspect"],
+[data-mode="design"] .inspector[data-for="design"] { display: block; }
+.section { padding: 16px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+.section:last-child { border-bottom: 0; }
+.section h3 {
+  margin: 0; font: 600 12px var(--font-body); color: var(--ink);
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
 }
-.label span:last-child { text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
-
+.section h3 .val { font: 500 11px var(--font-data); color: var(--muted); font-variant-numeric: tabular-nums; }
+.hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.hint b { font-weight: 600; color: var(--ink); }
 
 .pad-wrap { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; }
-.xy-pad { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border: 1px solid var(--line); border-radius: 3px; background: var(--stage); cursor: crosshair; touch-action: none; }
+.xy-pad { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border: 1px solid var(--line); border-radius: 8px; background: var(--stage); cursor: crosshair; touch-action: none; }
 
 .row { display: flex; flex-wrap: wrap; gap: 6px; }
 .btn {
-  font: 600 0.82rem var(--font-body);
-  padding: 7px 12px; border-radius: 3px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--stage); color: var(--ink);
+  font-weight: 500; font-size: 12px; padding: 6px 11px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink); box-shadow: 0 1px 1px rgba(0,0,0,0.03);
 }
 .btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); min-width: 5.5em; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
-.seg { justify-self: start; display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.seg { justify-self: start; display: inline-flex; gap: 2px; padding: 2px; background: var(--chrome); border: 1px solid var(--line); border-radius: 7px; }
 .seg button {
-  font: 500 0.78rem var(--font-data); padding: 6px 10px; border: 0; border-right: 1px solid var(--line);
-  background: var(--stage); color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums;
+  font: 500 11.5px var(--font-body); padding: 3px 8px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--muted); cursor: pointer; font-variant-numeric: tabular-nums;
 }
-.seg button:last-child { border-right: 0; }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
-.opts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--raised); color: var(--ink); box-shadow: var(--shadow); }
+.opts { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px 10px; align-items: center; }
+.opts > span { font-size: 12px; color: var(--muted); }
 .jit { display: flex; align-items: center; gap: 10px; }
-.jit input { flex: 1; min-width: 0; }
-.note { margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
-.opts > span { font-size: 0.82rem; color: var(--muted); }
+.jit input[type="range"] { flex: 1; min-width: 0; }
+.sub { font: 500 11px var(--font-data); color: var(--muted); font-variant-numeric: tabular-nums; }
+input[type="color"] { width: 40px; height: 26px; padding: 0 2px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised); cursor: pointer; }
+.opts .single-only[hidden] { display: none !important; }
+
+.cell { margin: 0; display: grid; gap: 8px; }
+.cell canvas { width: 100%; max-width: 100%; display: block; }
+.cell canvas.sq { aspect-ratio: 1; }
+.cell canvas.wide { aspect-ratio: 4 / 3; }
+.cap { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.cap b { font-weight: 600; }
+.cap .k1, .moves .k1 { color: var(--accent); } .cap .k2 { color: var(--h2); } .cap .kf, .moves .kf { color: var(--pos); } .cap .kn { color: var(--neg); }
+.moves { width: 100%; border-collapse: collapse; font: 500 11px var(--font-data); font-variant-numeric: tabular-nums; }
+.moves th { font-weight: 500; color: var(--muted); text-align: right; padding: 2px 0 2px 6px; }
+.moves th:first-child, .moves td:first-child { text-align: left; padding-left: 0; }
+.moves td { text-align: right; padding: 2px 0 2px 6px; }
 
 button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.coords { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 28px; border-top: 1px solid var(--line); padding-top: 16px; }
-.coord { display: grid; grid-template-columns: 5.2em minmax(0, 1fr); gap: 2px 12px; align-items: baseline; }
-.coord code { font-family: var(--font-data); font-size: 0.85rem; font-weight: 500; }
-.coord p { margin: 0; color: var(--muted); font-size: 0.86rem; }
-.coord .now { grid-column: 2; font-family: var(--font-data); font-size: 0.75rem; color: var(--ink); font-variant-numeric: tabular-nums; }
-.foot { color: var(--muted); font-size: 0.8rem; margin: 0; max-width: 90ch; }
-.foot code { font-family: var(--font-data); font-size: 0.78rem; }
+/* ---------- "How it works" button ---------- */
+.guide-btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 3px; border-radius: 999px; cursor: pointer;
+  border: 1px solid transparent; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 12.5px; white-space: nowrap;
+}
+.guide-btn:hover { border-color: var(--accent); }
+.guide-btn .q { position: relative; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 700 12px var(--font-display); }
+.guide-btn.new .q::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--accent); animation: ping 2.2s ease-out infinite; }
+@keyframes ping { 0% { transform: scale(0.85); opacity: 0.9; } 75%, 100% { transform: scale(1.7); opacity: 0; } }
+
+/* ---------- the guide ---------- */
+.guide { position: fixed; inset: 0; z-index: 20; background: var(--surface); display: flex; flex-direction: column; }
+.guide-top { flex: none; height: 56px; display: flex; align-items: center; gap: 16px; padding-inline: 20px; border-bottom: 1px solid var(--line); }
+.guide-top h2 { margin: 0; font: 700 15px var(--font-display); letter-spacing: -0.01em; white-space: nowrap; }
+.guide-nav { flex: 1; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; justify-content: center; min-width: 0; }
+.guide-nav button { border: 0; background: transparent; font-size: 12px; color: var(--muted); padding: 5px 9px; border-radius: 6px; white-space: nowrap; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.guide-nav button span { font: 500 10.5px var(--font-data); color: var(--faint); }
+.guide-nav button:hover, .guide-nav button[aria-current="true"] { color: var(--ink); background: var(--chrome); }
+.guide-nav button[aria-current="true"] span { color: var(--accent); }
+.guide-body { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+.guide-intro { max-width: 1120px; margin: 0 auto; padding: 64px 24px 24px; display: grid; gap: 12px; }
+.guide-intro .eyebrow { font: 500 11px var(--font-data); color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
+.guide-intro h1 { margin: 0; font: 700 clamp(28px, 3.6vw, 44px)/1.06 var(--font-display); letter-spacing: -0.035em; max-width: 20ch; text-wrap: balance; }
+.guide-intro p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; max-width: 52ch; }
+.chapter { max-width: 1120px; margin: 0 auto; padding: 56px 24px; display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 56px; align-items: center; border-top: 1px solid var(--line); }
+.ch-text { display: grid; gap: 12px; align-content: start; }
+.ch-num { font: 500 11px var(--font-data); color: var(--accent); letter-spacing: 0.08em; }
+.ch-text h3 { margin: 0; font: 600 22px/1.15 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
+.ch-text p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 36ch; }
+.math { font: 500 12.5px/1.75 var(--font-data); color: var(--ink); background: var(--chrome); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; white-space: pre; overflow-x: auto; }
+.math small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.5; white-space: normal; }
+.ch-fig { margin: 0; min-width: 0; position: relative; display: grid; justify-items: center; }
+.ch-fig canvas { width: 100%; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px 9px; font: 500 11px/1.6 var(--font-data); color: var(--ink); white-space: nowrap; }
+.tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.guide-end { max-width: 1120px; margin: 0 auto; padding: 48px 24px 72px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px; }
+.guide-end h3 { margin: 0 0 12px; font: 600 13px var(--font-body); }
+.guide-end p { margin: 0; color: var(--muted); max-width: 52ch; }
+.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px 16px; font-size: 12.5px; color: var(--muted); }
+.keys kbd { font: 500 11px var(--font-data); color: var(--ink); background: var(--chrome); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; margin-right: 6px; }
+
+/* ---------- small screens: one scrolling column ---------- */
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; grid-template-areas: "top" "center" "transport" "side"; }
+  .top { flex-wrap: wrap; padding-block: 8px; height: auto; }
+  .top .spacer { display: none; }
+  .modes kbd { display: none; }
+  .center { container-type: inline-size; flex-direction: column; }
+  .stage-wrap { padding: 16px; }
+  .stage, [data-mode="inspect"] .stage { width: calc(100cqw - 32px); }
+  [data-mode="inspect"] .stage-wrap { width: auto; padding-right: 16px; }
+  .net-pane, [data-mode="inspect"] .net-pane { padding: 0 16px 16px; flex: none; }
+  #netCv { height: 380px; flex: none; }
+  .transport { position: sticky; bottom: 0; z-index: 5; flex-wrap: wrap; padding-block: 8px; height: auto; padding-inline: 16px; }
+  .transport .opt { display: none; }
+  .side { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .guide-nav { display: none; }
+  .guide-top { justify-content: space-between; }
+  .guide-intro { padding: 36px 16px 8px; }
+  .chapter { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 36px 16px; }
+  .guide-end { padding: 36px 16px 56px; }
+}
+@media (prefers-reduced-motion: reduce) { .guide-btn.new .q::after { animation: none; opacity: 0.5; } .guide-body { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
 </style>
 
-<div class="wrap">
-  <header>
-    <h1>Digit Swarm</h1>
-    <p class="lede">One weight-shared transformer block, applied <b>16 times</b> to a flock of points in R<sup>6</sup>. The points start on a sunflower disk and settle into a handwritten digit. It runs live in your browser.</p>
+<div class="app" id="app" data-mode="explore">
+  <header class="top">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><g fill="currentColor"><circle cx="10" cy="10" r="1.6"/><circle cx="13.4" cy="7.2" r="1.3"/><circle cx="6.2" cy="12.4" r="1.3"/><circle cx="7.4" cy="5.6" r="1.1"/><circle cx="14.2" cy="13" r="1.1"/><circle cx="4.6" cy="8.4" r="0.9"/><circle cx="10.6" cy="15.2" r="0.9"/><circle cx="16" cy="9.8" r="0.8"/><circle cx="10.2" cy="3.8" r="0.8"/></g></svg>
+      Digit Swarm <small>transformer as a flock</small>
+    </div>
+    <nav class="modes" role="tablist" aria-label="Mode">
+      <button role="tab" id="tab-explore" data-mode="explore" aria-selected="true">Explore <kbd>E</kbd></button>
+      <button role="tab" id="tab-inspect" data-mode="inspect" aria-selected="false">Inspect <kbd>I</kbd></button>
+      <button role="tab" id="tab-design" data-mode="design" aria-selected="false">Design <kbd>D</kbd></button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="model"><span>Model</span><div class="seg" id="segModel"></div></div>
+    <button class="guide-btn" id="helpBtn" type="button"><span class="q" aria-hidden="true">?</span>How it works</button>
   </header>
 
-  <main>
-    <div class="stage-col">
+  <main class="center">
+    <div class="stage-wrap">
       <div class="stage" id="stage">
         <canvas id="view" aria-label="The swarm in the picture plane"></canvas>
-        <div class="tag" id="tagLeft">digit 7</div>
-        <div class="tag right" id="tagRight"></div>
-      </div>
-      <div class="timeline">
-        <button class="btn primary" id="play" type="button">Pause</button>
-        <div class="track">
-          <input type="range" id="scrub" min="0" max="16" step="0.01" value="0" aria-label="Step">
-          <div class="ticks" id="ticks"></div>
-        </div>
-        <output id="stepOut">t 0.00 / 16</output>
+        <div class="hud tl" id="tagLeft">digit 7</div>
+        <div class="hud tr" id="tagRight"></div>
+        <div class="hud bl" id="hudHint"></div>
       </div>
     </div>
-
-    <aside class="panel">
-      <div class="group">
-        <div class="label"><span>Model</span></div>
-        <div class="seg" id="segModel"></div>
-        <p class="note" id="modelNote"></p>
+    <section class="net-pane" aria-label="The network for the followed boid">
+      <div class="net-card">
+        <header>
+          <h2>Inside the block</h2>
+          <span class="meta" id="netOut"></span>
+        </header>
+        <p class="hint" id="netNote">Click any boid on the stage to follow it through one step of the network.</p>
+        <canvas id="netCv" aria-label="The block as a layered network diagram for the followed boid"></canvas>
+        <div class="legend">
+          <span><i style="background: var(--pos)"></i>pushes up</span>
+          <span><i style="background: var(--neg)"></i>pushes down</span>
+          <span>Dots are neurons, lit when they fire. Lines are the strongest signals, weight × activation.</span>
+        </div>
       </div>
+    </section>
+  </main>
 
-      <div class="group">
-        <div class="label"><span>Class code · c₁ c₂</span><span id="codeOut"></span></div>
+  <footer class="transport">
+    <button class="play" id="play" type="button" aria-label="Pause"></button>
+    <div class="track">
+      <input type="range" id="scrub" min="0" max="16" step="0.01" value="0" aria-label="Step">
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <output id="stepOut">t  0.00 / 16</output>
+    <div class="opt"><span>Speed</span><div class="seg" id="segSpeed"></div></div>
+  </footer>
+
+  <aside class="side" aria-label="Inspector">
+    <!-- Explore: what to draw -->
+    <div class="inspector" data-for="explore">
+      <section class="section">
+        <h3>Digit <span class="val" id="codeOut"></span></h3>
         <div class="pad-wrap"><canvas id="codePad" class="xy-pad" tabindex="0" aria-label="Class code pad. Click a digit, drag between digits, or use the arrow keys."></canvas></div>
-      </div>
-
-      <div class="group">
-        <div class="label"><span>Style latent · s₁ s₂</span><span id="styleOut"></span></div>
+        <p class="hint">Click a digit, or drag between two to blend them.</p>
+      </section>
+      <section class="section">
+        <h3>Style <span class="val" id="styleOut"></span></h3>
         <div class="pad-wrap"><canvas id="pad" class="xy-pad" tabindex="0" aria-label="Style latent pad. Drag, or use the arrow keys."></canvas></div>
         <div class="row">
           <button class="btn" id="random" type="button">Sample style</button>
           <button class="btn" id="origin" type="button">Centre</button>
         </div>
-      </div>
-
-      <div class="group">
-        <div class="label"><span>Start jitter · σ</span><span id="jitterOut"></span></div>
-        <div class="jit">
-          <input type="range" id="jitter" min="0" max="0.3" step="0.005" value="0" aria-label="Start jitter">
-          <button class="btn" id="reroll" type="button">Reroll</button>
-        </div>
-      </div>
-
-      <div class="group">
-        <div class="label"><span>Simulation</span></div>
+      </section>
+      <section class="section">
+        <h3>Swarm</h3>
         <div class="opts">
           <span>Boids</span>
           <div class="seg" id="segN"></div>
           <span>Steps</span>
           <div class="seg" id="segSteps"></div>
-          <span>Speed</span>
-          <div class="seg" id="segSpeed"></div>
-          <span>Render</span>
-          <div class="seg" id="segMode"></div>
+          <span>Jitter <span class="sub" id="jitterOut"></span></span>
+          <div class="jit">
+            <input type="range" id="jitter" min="0" max="0.3" step="0.005" value="0" aria-label="Start jitter">
+            <button class="btn" id="reroll" type="button">Reroll</button>
+          </div>
+        </div>
+        <p class="hint">Jitter scatters the starting disk off its sunflower grid. Steps past 16 run the block beyond what the original model was trained on.</p>
+      </section>
+    </div>
+
+    <!-- Inspect: one boid through the block -->
+    <div class="inspector" data-for="inspect">
+      <section class="section">
+        <h3>Followed boid</h3>
+        <p class="hint">Click a boid on the stage. Lines show the boids it hears above an even share.</p>
+        <div class="opts"><span>Show lines</span><div class="seg" id="segFollow"></div></div>
+      </section>
+      <section class="section">
+        <figure class="cell">
+          <h3>Attention <span class="val">who it listens to</span></h3>
+          <canvas id="attnCv" class="wide"></canvas>
+          <p class="cap" id="attnCap"></p>
+        </figure>
+      </section>
+      <section class="section">
+        <figure class="cell">
+          <h3>Move <span class="val">flock + solo = step</span></h3>
+          <canvas id="moveCv" class="sq"></canvas>
+          <table class="moves" id="moveTable"></table>
+        </figure>
+      </section>
+    </div>
+
+    <!-- Design: how it looks, and export -->
+    <div class="inspector" data-for="design">
+      <section class="section">
+        <h3>Boids</h3>
+        <div class="opts">
+          <span>Dots</span>
+          <div class="seg" id="segDots"></div>
+          <span>Size</span>
+          <div class="jit"><input type="range" id="dotSize" min="0.3" max="3" step="0.05" value="1" aria-label="Dot size"><span class="sub" id="dotSizeOut"></span></div>
           <span>Colour</span>
           <div class="seg" id="segColor"></div>
-          <span>Trails</span>
-          <div class="seg" id="segTrails"></div>
+          <span class="single-only">Pick</span>
+          <div class="jit single-only"><input type="color" id="dotColor" value="#3a4cd6" aria-label="Dot colour"><span class="sub" id="dotColorOut"></span></div>
         </div>
-      </div>
-    </aside>
-  </main>
+      </section>
+      <section class="section">
+        <h3>Trails</h3>
+        <div class="opts">
+          <span>Length</span>
+          <div class="seg" id="segTrails"></div>
+          <span>Opacity</span>
+          <div class="jit"><input type="range" id="trailAlpha" min="0.05" max="1" step="0.05" value="0.35" aria-label="Trail opacity"><span class="sub" id="trailAlphaOut"></span></div>
+        </div>
+      </section>
+      <section class="section">
+        <h3>Canvas</h3>
+        <div class="opts">
+          <span>Ink</span>
+          <div class="seg" id="segInk"></div>
+          <span>Grid</span>
+          <div class="seg" id="segGrid"></div>
+          <span>Frame</span>
+          <div class="seg" id="segFrame"></div>
+          <span>Start disk</span>
+          <div class="seg" id="segDisk"></div>
+          <span>Background</span>
+          <div class="seg" id="segBg"></div>
+        </div>
+        <p class="hint">Ink renders the swarm the way the loss sees it: splatted onto the 28 × 28 MNIST grid.</p>
+      </section>
+      <section class="section">
+        <h3>Export <span class="val" id="exportOut"></span></h3>
+        <div class="row">
+          <button class="btn primary" id="exportSvg" type="button">Export SVG</button>
+          <button class="btn" id="copySvg" type="button">Copy SVG</button>
+        </div>
+        <p class="hint">The stage exactly as shown, at the current step, as a 1000 × 1000 vector file.</p>
+      </section>
+    </div>
+  </aside>
+</div>
 
-  <section class="coords" aria-label="What the six coordinates are">
-    <div class="coord">
-      <code>x, y</code>
-      <p>The picture plane. Each boid starts at a fixed spot on the disk, and that spot is its identity, so there is no positional encoding. Colours follow the starting position, so the same boid has the same colour in every digit.</p>
-      <span class="now" id="nowXY"></span>
+<div class="guide" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+  <header class="guide-top">
+    <h2 id="guideTitle">How it works</h2>
+    <nav class="guide-nav" id="guideNav" aria-label="Chapters"></nav>
+    <button class="icon-btn" id="guideClose" type="button" aria-label="Close the guide">×</button>
+  </header>
+  <div class="guide-body" id="guideBody">
+    <div class="guide-intro">
+      <span class="eyebrow">A transformer, seen as a flock</span>
+      <h1>A flock of points learns to write digits</h1>
+      <p>No pixels and no pen. A cloud of points moves by one simple rule, repeated, until it forms a handwritten digit. Every picture below is drawn live from the model.</p>
     </div>
-    <div class="coord">
-      <code>c₁, c₂</code>
-      <p>The prompt: one of ten points on a circle of radius 2, the same for every boid. Pinned, so the block can read it but never write it.</p>
-      <span class="now" id="nowC"></span>
-    </div>
-    <div class="coord">
-      <code>s₁, s₂</code>
-      <p>The style: one global draw from N(0, I), so it does not average out the way per-boid noise would. Free state: the block writes to it, which lets paths cross in the picture plane.</p>
-      <span class="now" id="nowS"></span>
-    </div>
-  </section>
-
-  <p class="foot">Both models have 69,384 parameters: 2 heads and a 6→256→256→6 GELU feed-forward, trained on 64 boids. The dynamics are close to mean-field, so other swarm sizes work too. The original was trained on 16 steps; the stable model was fine-tuned to stay put through step 32. Anything longer extrapolates. Keys: <code>0</code>–<code>9</code> pick a digit, <code>space</code> plays, <code>s</code> samples a style.</p>
+  </div>
 </div>
 
 <script src="models/original.js"></script>
@@ -240,12 +441,15 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   const load = (name) => (built[name] ||= new SwarmModel.Swarm(MODELS.find((m) => m.name === name)));
   let model = load(MODELS[MODELS.length - 1].name);
   const D = model.d;
+  const $ = (id) => document.getElementById(id);
+  const f2 = (v) => (v < 0 ? "−" : " ") + Math.abs(v).toFixed(2);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const S = {
     model: MODELS[MODELS.length - 1].name, jitter: 0, code: [0, 0],
     label: 7, style: [0.6, -0.4], n: 128, steps: 16, speed: 4,
-    mode: "dots", color: "origin", trails: "off",
+    dots: "on", dotSize: 1, color: "origin", single: "#3a4cd6", trails: "off", trailAlpha: 0.35, ink: "off",
+    grid: "on", frame: "on", disk: "on", follow: "on", bg: "theme",
     t: 0, playing: !reduceMotion,
   };
 
@@ -325,7 +529,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   let tok = {};
   function readTokens() {
     const c = css();
-    for (const k of ["stage", "ink", "muted", "line", "accent", "neg", "pos"]) tok[k] = c.getPropertyValue("--" + k).trim();
+    for (const k of ["stage", "ink", "muted", "faint", "line", "accent", "neg", "pos", "h2", "s-orig", "s-stable", "chrome", "surface"]) tok[k] = c.getPropertyValue("--" + k).trim();
     tok.gain = parseFloat(c.getPropertyValue("--dot-gain")) || 1;
     tok.inkRGB = hexRGB(tok.ink); tok.negRGB = hexRGB(tok.neg); tok.posRGB = hexRGB(tok.pos); tok.mutedRGB = hexRGB(tok.muted);
   }
@@ -334,12 +538,6 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     if (h.length === 3) h = h.split("").map((c) => c + c).join("");
     const v = parseInt(h, 16);
     return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
-  }
-  // vis.py's colormap over the initial disk: same boid, same colour, in every figure.
-  function originColor(x0, y0) {
-    const r = (x0 + 1) / 2, g = (y0 + 1) / 2, b = 1 - (0.5 * (r + g)) / 2;
-    const k = 255 * tok.gain;
-    return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(Math.min(1, b) * k)})`;
   }
   function divergeColor(v) {
     const a = Math.max(-1, Math.min(1, v / 2.5));
@@ -361,78 +559,364 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   const px = (x) => ((x + EXT) / (2 * EXT)) * vsize;
   const py = (y) => ((EXT - y) / (2 * EXT)) * vsize;
 
-  const ink = document.createElement("canvas"); ink.width = ink.height = 28;
-  const ictx = ink.getContext("2d");
-  const inkImg = ictx.createImageData(28, 28);
+  // The stage is drawn as a scene through a "pen", so the canvas and the SVG export are the same picture.
+  function canvasPen(c) {
+    const style = (o) => {
+      c.globalAlpha = o.alpha ?? 1;
+      c.setLineDash(o.dash || []);
+      if (o.width) c.lineWidth = o.width;
+    };
+    return {
+      background(col, size) { c.clearRect(0, 0, size, size); if (col) { c.fillStyle = col; c.fillRect(0, 0, size, size); } },
+      lines(segs, o) { style(o); c.strokeStyle = o.stroke; c.beginPath(); for (const [a, b, d, e] of segs) { c.moveTo(a, b); c.lineTo(d, e); } c.stroke(); c.globalAlpha = 1; c.setLineDash([]); },
+      polyline(pts, o) { style(o); c.strokeStyle = o.stroke; c.beginPath(); pts.forEach(([a, b], i) => (i ? c.lineTo(a, b) : c.moveTo(a, b))); c.stroke(); c.globalAlpha = 1; },
+      circle(x, y, r, o) {
+        style(o); c.beginPath(); c.arc(x, y, r, 0, 2 * Math.PI);
+        if (o.fill) { c.fillStyle = o.fill; c.fill(); }
+        if (o.stroke) { c.strokeStyle = o.stroke; c.stroke(); }
+        c.globalAlpha = 1; c.setLineDash([]);
+      },
+      rect(x, y, w, h, o) { style(o); if (o.fill) { c.fillStyle = o.fill; c.fillRect(x, y, w, h); } if (o.stroke) { c.strokeStyle = o.stroke; c.strokeRect(x, y, w, h); } c.globalAlpha = 1; },
+    };
+  }
+  function svgPen() {
+    const out = [], r2 = (v) => Math.round(v * 100) / 100;
+    const attrs = (o, fill) => {
+      let a = fill ? ` fill="${o.fill || "none"}"` : ' fill="none"';
+      if (o.stroke) a += ` stroke="${o.stroke}" stroke-width="${r2(o.width || 1)}"`;
+      if (o.dash) a += ` stroke-dasharray="${o.dash.join(" ")}"`;
+      if ((o.alpha ?? 1) < 1) a += ` opacity="${r2(o.alpha)}"`;
+      return a;
+    };
+    return {
+      out,
+      background(col, size) { if (col) out.push(`<rect width="${size}" height="${size}" fill="${col}"/>`); },
+      lines(segs, o) { out.push(`<path d="${segs.map(([a, b, d, e]) => `M${r2(a)} ${r2(b)}L${r2(d)} ${r2(e)}`).join("")}"${attrs(o)}/>`); },
+      polyline(pts, o) { out.push(`<polyline points="${pts.map(([a, b]) => `${r2(a)},${r2(b)}`).join(" ")}"${attrs(o)} stroke-linejoin="round"/>`); },
+      circle(x, y, r, o) { out.push(`<circle cx="${r2(x)}" cy="${r2(y)}" r="${r2(r)}"${attrs(o, true)}/>`); },
+      rect(x, y, w, h, o) { out.push(`<rect x="${r2(x)}" y="${r2(y)}" width="${r2(w)}" height="${r2(h)}"${attrs(o, true)}/>`); },
+    };
+  }
 
-  function drawView(run, st) {
-    const c = vctx, n = run.n, x = st.x;
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.clearRect(0, 0, vsize, vsize);
+  // Colours for a background choice. "theme" follows the page; white and black use the page's light and dark palettes.
+  const PALETTES = {
+    light: { bg: "#ffffff", line: "#c9d1d8", ink: "#17202a", muted: "#5d6874", gain: 0.78 },
+    dark: { bg: "#000000", line: "#2a323c", ink: "#e2e7ec", muted: "#8b96a2", gain: 1 },
+  };
+  function scenePalette(forExport) {
+    if (S.bg === "white") return PALETTES.light;
+    if (S.bg === "black") return PALETTES.dark;
+    const p = { bg: tok.stage, line: tok.line, ink: tok.ink, muted: tok.muted, gain: tok.gain };
+    if (S.bg === "none") p.bg = forExport ? null : tok.stage;
+    return p;
+  }
 
-    // MNIST frame with its 28 x 28 pixel grid, and the starting disk.
-    const f0 = px(-1), f1 = px(1), cell = (f1 - f0) / 28;
-    c.strokeStyle = tok.line; c.lineWidth = 1;
-    c.globalAlpha = S.mode === "ink" ? 0.55 : 0.28;
-    c.beginPath();
-    for (let i = 1; i < 28; i++) {
-      const p = Math.round(f0 + i * cell) + 0.5;
-      c.moveTo(p, f0); c.lineTo(p, f1); c.moveTo(f0, p); c.lineTo(f1, p);
+  function renderScene(pen, size, run, st, forExport) {
+    const n = run.n, x = st.x, pal = scenePalette(forExport);
+    const X = (v) => ((v + EXT) / (2 * EXT)) * size, Y = (v) => ((EXT - v) / (2 * EXT)) * size;
+    pen.background(pal.bg, size);
+    const f0 = X(-1), f1 = X(1), cell = (f1 - f0) / 28;
+
+    if (S.grid === "on") {
+      const segs = [];
+      for (let i = 1; i < 28; i++) { const q = f0 + i * cell; segs.push([q, f0, q, f1], [f0, q, f1, q]); }
+      pen.lines(segs, { stroke: pal.line, width: 1, alpha: S.ink === "on" ? 0.55 : 0.4 });
     }
-    c.stroke();
-    c.globalAlpha = 1;
-    c.strokeRect(Math.round(f0) + 0.5, Math.round(f0) + 0.5, Math.round(f1 - f0), Math.round(f1 - f0));
-    c.setLineDash([3, 5]); c.globalAlpha = 0.7;
-    c.beginPath(); c.arc(px(0), py(0), (model.diskRadius / (2 * EXT)) * vsize, 0, 2 * Math.PI); c.stroke();
-    c.setLineDash([]); c.globalAlpha = 1;
+    if (S.frame === "on") pen.rect(f0, f0, f1 - f0, f1 - f0, { stroke: pal.line, width: 1 });
+    if (S.disk === "on") pen.circle(X(0), Y(0), (model.diskRadius / (2 * EXT)) * size, { stroke: pal.line, width: 1, dash: [3, 5], alpha: 0.8 });
 
-    const colorOf = (i) => S.color === "origin" ? originColor(run.init[2 * i], run.init[2 * i + 1]) : divergeColor(x[i * D + 4]);
+    const colorOf = (i) => {
+      if (S.color === "single") return S.single;
+      if (S.color === "style") return divergeColor(x[i * D + 4]);
+      // vis.py's colormap over the initial disk: same boid, same colour, in every figure.
+      const r = (run.init[2 * i] + 1) / 2, g = (run.init[2 * i + 1] + 1) / 2, b = Math.min(1, 1 - (0.5 * (r + g)) / 2), k = 255 * pal.gain;
+      return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
+    };
 
-    if (S.trails === "on" && st.t > 0) {
-      c.lineWidth = 1; c.globalAlpha = 0.35;
-      const upto = Math.floor(st.t);
-      for (let i = 0; i < n; i++) {
-        c.strokeStyle = colorOf(i);
-        c.beginPath();
-        for (let k = 0; k <= upto; k++) {
-          const s = run.traj[k];
-          k === 0 ? c.moveTo(px(s[i * D]), py(s[i * D + 1])) : c.lineTo(px(s[i * D]), py(s[i * D + 1]));
-        }
-        c.lineTo(px(x[i * D]), py(x[i * D + 1]));
-        c.stroke();
-      }
-      c.globalAlpha = 1;
-    }
-
-    if (S.mode === "ink") {
+    if (S.ink === "on") {
       // What the loss sees: the cloud splatted onto the 28 x 28 grid with a Gaussian of 1 pixel.
       const sig = 2 / 28, dens = new Float64Array(784), kx = new Float64Array(28), ky = new Float64Array(28);
       for (let i = 0; i < n; i++) {
         const bx = x[i * D], by = x[i * D + 1];
-        for (let g = 0; g < 28; g++) {
-          const gc = ((g + 0.5) / 28) * 2 - 1;
-          kx[g] = Math.exp(-0.5 * ((bx - gc) / sig) ** 2);
-          ky[g] = Math.exp(-0.5 * ((by + gc) / sig) ** 2);
+        for (let q = 0; q < 28; q++) {
+          const gc = ((q + 0.5) / 28) * 2 - 1;
+          kx[q] = Math.exp(-0.5 * ((bx - gc) / sig) ** 2);
+          ky[q] = Math.exp(-0.5 * ((by + gc) / sig) ** 2);
         }
         for (let r = 0; r < 28; r++) { const a = ky[r]; if (a < 1e-4) continue; for (let q = 0; q < 28; q++) dens[r * 28 + q] += a * kx[q]; }
       }
       let mx = 0; for (const v of dens) mx = Math.max(mx, v);
-      const [R, G, B] = tok.inkRGB;
-      for (let p = 0; p < 784; p++) {
-        const a = Math.min(1, (dens[p] / (mx || 1)) * 1.25);
-        inkImg.data[4 * p] = R; inkImg.data[4 * p + 1] = G; inkImg.data[4 * p + 2] = B; inkImg.data[4 * p + 3] = Math.round(255 * a);
+      for (let q = 0; q < 784; q++) {
+        const a = Math.min(1, (dens[q] / (mx || 1)) * 1.25);
+        if (a > 0.02) pen.rect(f0 + (q % 28) * cell, f0 + Math.floor(q / 28) * cell, cell + 0.4, cell + 0.4, { fill: pal.ink, alpha: a });
       }
-      ictx.putImageData(inkImg, 0, 0);
-      c.imageSmoothingEnabled = false;
-      c.drawImage(ink, f0, f0, f1 - f0, f1 - f0);
-      return;
     }
 
-    const rad = Math.max(1.6, Math.min(6, vsize * 0.0105 * Math.sqrt(128 / n)));
-    for (let i = 0; i < n; i++) {
-      c.fillStyle = colorOf(i);
-      c.beginPath(); c.arc(px(x[i * D]), py(x[i * D + 1]), rad, 0, 2 * Math.PI); c.fill();
+    if (S.trails !== "off" && st.t > 0) {
+      const upto = Math.floor(st.t), from = S.trails === "short" ? Math.max(0, upto - 3) : 0;
+      for (let i = 0; i < n; i++) {
+        const pts = [];
+        for (let k = from; k <= upto; k++) { const s = run.traj[k]; pts.push([X(s[i * D]), Y(s[i * D + 1])]); }
+        pts.push([X(x[i * D]), Y(x[i * D + 1])]);
+        pen.polyline(pts, { stroke: colorOf(i), width: Math.max(0.6, size / 700), alpha: S.trailAlpha });
+      }
     }
+
+    if (S.dots === "on") {
+      const rad = Math.max(0.8, Math.min(14, size * 0.0105 * Math.sqrt(128 / n) * S.dotSize));
+      for (let i = 0; i < n; i++) pen.circle(X(x[i * D]), Y(x[i * D + 1]), rad, { fill: colorOf(i) });
+    }
+
+    // The followed boid: lines to the boids it hears above an even split, per head, and a ring around it.
+    if (S.follow === "on" && app.dataset.mode === "inspect" && !forExport && lastIns && focus >= 0 && focus < n) {
+      const fx = X(x[focus * D]), fy = Y(x[focus * D + 1]);
+      lastIns.attn.forEach((a, h) => {
+        if (a.length !== n) return;
+        const order = [...a.keys()].sort((p, q) => a[q] - a[p]).slice(0, 16), top = a[order[0]] * n - 1;
+        for (const j of order) {
+          const ex = a[j] * n - 1;
+          if (j === focus || ex <= 0 || top <= 0) continue;
+          pen.lines([[fx, fy, X(x[j * D]), Y(x[j * D + 1])]], { stroke: HEAD()[h], width: (0.6 + 2.4 * (ex / top)) * (size / vsize || 1), alpha: 0.1 + 0.8 * (ex / top) });
+        }
+      });
+      pen.circle(fx, fy, Math.max(7, size * 0.016), { stroke: pal.ink, width: 2 * (size / vsize || 1) });
+    }
+  }
+
+  function drawView(run, st) {
+    vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    renderScene(canvasPen(vctx), vsize, run, st, false);
+  }
+
+  function sceneSVG() {
+    const { run, st } = lastDrawn, size = 1000, pen = svgPen();
+    renderScene(pen, size, run, st, true);
+    const desc = `Digit Swarm: model ${S.model}, code (${S.code.map((v) => v.toFixed(3)).join(", ")}), style (${S.style.map((v) => v.toFixed(3)).join(", ")}), ${run.n} boids, t = ${st.t.toFixed(2)}`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">\n<title>${desc}</title>\n${pen.out.join("\n")}\n</svg>\n`;
+  }
+
+  // ---------- inside the block: one boid through one step ----------
+  const HEAD = () => [tok.accent, tok.h2];
+  const NAMES = ["x", "y", "c₁", "c₂", "s₁", "s₂"];
+  const netCanvases = ["netCv", "attnCv", "moveCv"].map((id) => document.getElementById(id));
+  let netKey = ""; // what the panel last drew; it only redraws when the boid, step, run or size changes
+  function fitCanvas(cv) {
+    const r = cv.getBoundingClientRect();
+    cv._w = r.width; cv._h = r.height;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  }
+  function ctxOf(cv) {
+    const c = cv.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, cv._w, cv._h);
+    return c;
+  }
+
+  // The boid being followed. Index into the sunflower, so it is the same boid across digits and styles.
+  let focus = -1;
+  let lastDrawn = null; // { run, st } of the last frame, for hit-testing clicks
+  view.addEventListener("pointerdown", (e) => {
+    if (!lastDrawn) return;
+    const r = view.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    const { run, st } = lastDrawn;
+    let best = -1, bd = 18 * 18;
+    for (let i = 0; i < run.n; i++) {
+      const d2 = (px(st.x[i * D]) - mx) ** 2 + (py(st.x[i * D + 1]) - my) ** 2;
+      if (d2 < bd) { bd = d2; best = i; }
+    }
+    if (best >= 0) focus = best;
+  });
+  view.style.cursor = "pointer";
+
+  // A fixed colour scale per model for the hidden layers, from typical activations.
+  const actScale = {};
+  function scalesFor() {
+    if (actScale[S.model]) return actScale[S.model];
+    const n = 64, tr = model.run(n, 7, [0, 0], 12), vals = [[], []];
+    for (const k of [0, 6, 11]) for (let i = 0; i < n; i += 4) model.inspect(tr[k], n, i).hidden.forEach((h, l) => h.forEach((v) => vals[l].push(Math.abs(v))));
+    return (actScale[S.model] = vals.map((v) => { v.sort((a, b) => a - b); return Math.max(1e-3, v[Math.floor(0.98 * (v.length - 1))]); }));
+  }
+
+  const runIds = new WeakMap();
+  let runCounter = 0, lastIns = null;
+  const runId = (r) => { if (!runIds.has(r)) runIds.set(r, ++runCounter); return runIds.get(r); };
+
+  // The block as a classic layered diagram. Dots are neurons; lines are the strongest contributions
+  // (weight x incoming activation) into the next layer, for this boid at this step.
+  function drawDiagram(ins) {
+    const cv = netCanvases[0], W = cv._w, H = cv._h;
+    if (!(W > 80 && H > 80)) return; // hidden in this mode
+    const g = ctxOf(cv);
+    const font = css().getPropertyValue("--font-data");
+    const next = ins.mid.map((v, j) => v + ins.solo[j]);
+    const sc = scalesFor();
+    const L = 34, R = W - 58, top = 30, bot = H - 10;
+    const cols = [
+      { name: "input", vals: ins.input, f: 0 },
+      { name: "+ flock", vals: ins.mid, f: 0.2 },
+      { name: "hidden 1", vals: ins.hidden[0], f: 0.42 },
+      { name: "hidden 2", vals: ins.hidden[1], f: 0.64 },
+      { name: "solo out", vals: ins.out, f: 0.84 },
+      { name: "next", vals: next, f: 1 },
+    ];
+    for (const c of cols) {
+      c.x = L + c.f * (R - L);
+      const m = c.vals.length;
+      const gap = m > 16 ? (bot - top) / (m - 1) : Math.min(46, (bot - top) / m);
+      const y0 = m > 16 ? top : (top + bot) / 2 - (gap * (m - 1)) / 2;
+      c.y = (i) => y0 + i * gap;
+      c.r = m > 16 ? Math.max(1.1, Math.min(3, gap * 0.42)) : Math.min(9, gap * 0.3);
+    }
+    const [inp, mid, h1, h2, out, nxt] = cols;
+    const posRGB = hexRGB(tok.pos), negRGB = tok.negRGB;
+    const rgba = (v, a) => { const c = v >= 0 ? posRGB : negRGB; return `rgba(${c[0]},${c[1]},${c[2]},${a})`; };
+
+    // The strongest k of all from->to contributions between two layers, weakest drawn first.
+    function edges(A, B, contrib, k) {
+      const all = [];
+      for (let o = 0; o < B.vals.length; o++) for (let i = 0; i < A.vals.length; i++) {
+        const v = contrib(o, i);
+        if (v !== 0) all.push([Math.abs(v), v, i, o]);
+      }
+      all.sort((p, q) => p[0] - q[0]);
+      const shown = all.slice(-k), mx = shown.length ? shown[shown.length - 1][0] : 1;
+      for (const [m, v, i, o] of shown) {
+        const t = m / mx;
+        g.strokeStyle = rgba(v, 0.05 + 0.6 * t);
+        g.lineWidth = 0.4 + 1.8 * t;
+        g.beginPath(); g.moveTo(A.x, A.y(i)); g.lineTo(B.x, B.y(o)); g.stroke();
+      }
+    }
+    const [l1, l2, l3] = model.ffn;
+    // input -> +flock: the residual (straight through) plus the attention block's move
+    g.strokeStyle = tok.line; g.lineWidth = 1.2;
+    for (let j = 0; j < 6; j++) { g.beginPath(); g.moveTo(inp.x, inp.y(j)); g.lineTo(mid.x, mid.y(j)); g.stroke(); }
+    const bx = (inp.x + mid.x) / 2, bh = Math.min(70, (bot - top) * 0.22), by = (top + bot) / 2 - bh / 2, bw = Math.min(46, (mid.x - inp.x) * 0.5);
+    const fmax = Math.max(...ins.flock.map(Math.abs), 1e-9);
+    for (let j = 0; j < 6; j++) {
+      if (ins.flock[j] === 0) continue;
+      const t = Math.abs(ins.flock[j]) / fmax;
+      g.strokeStyle = rgba(ins.flock[j], 0.15 + 0.7 * t); g.lineWidth = 0.6 + 2 * t;
+      g.beginPath(); g.moveTo(bx + bw / 2, by + bh / 2); g.lineTo(mid.x, mid.y(j)); g.stroke();
+    }
+    g.fillStyle = tok.stage; g.strokeStyle = tok.accent; g.lineWidth = 1.5;
+    g.beginPath(); g.roundRect(bx - bw / 2, by, bw, bh, 4); g.fill(); g.stroke();
+    g.fillStyle = tok.accent; g.font = `500 10px ${font}`; g.textAlign = "center";
+    g.fillText("attn", bx, by + bh / 2 - 2); g.fillText("×2", bx, by + bh / 2 + 10);
+    edges(mid, h1, (o, i) => l1.w[o * l1.nin + i] * ins.mid[i], 240);
+    edges(h1, h2, (o, i) => l2.w[o * l2.nin + i] * ins.hidden[0][i], 360);
+    edges(h2, out, (o, i) => l3.w[o * l3.nin + i] * ins.hidden[1][i], 180);
+    const smax = Math.max(...ins.solo.map(Math.abs), 1e-9);
+    for (let j = 0; j < 6; j++) {
+      const t = Math.abs(ins.solo[j]) / smax;
+      g.strokeStyle = ins.solo[j] === 0 ? tok.line : rgba(ins.solo[j], 0.15 + 0.7 * t); g.lineWidth = ins.solo[j] === 0 ? 1 : 0.6 + 2 * t;
+      g.beginPath(); g.moveTo(out.x, out.y(j)); g.lineTo(nxt.x, nxt.y(j)); g.stroke();
+    }
+
+    // neurons
+    const omax = Math.max(...ins.out.map(Math.abs), 1e-9);
+    for (const [ci, c] of cols.entries()) {
+      for (let i = 0; i < c.vals.length; i++) {
+        const v = c.vals[i], y = c.y(i);
+        let a;
+        if (c === h1 || c === h2) a = v > 0 ? Math.min(1, v / sc[c === h1 ? 0 : 1]) : 0;
+        else a = Math.min(1, Math.abs(v) / (c === out ? omax : 2));
+        g.beginPath(); g.arc(c.x, y, c.r, 0, 2 * Math.PI);
+        g.fillStyle = tok.stage; g.fill();
+        if (a > 0.02) { g.fillStyle = rgba(v, Math.max(0.15, a)); g.fill(); }
+        if (c.vals.length <= 16) {
+          g.strokeStyle = (i === 2 || i === 3) ? tok.muted : tok.ink; g.lineWidth = 1;
+          g.setLineDash(i === 2 || i === 3 ? [2, 2] : []); g.stroke(); g.setLineDash([]);
+        } else if (a <= 0.02) {
+          g.strokeStyle = tok.line; g.lineWidth = 0.6; g.stroke();
+        }
+      }
+    }
+    // labels
+    g.font = `500 10px ${font}`; g.fillStyle = tok.muted; g.textAlign = "center";
+    const SHORT = { input: "in", "+ flock": "+flock", "hidden 1": "h1", "hidden 2": "h2", "solo out": "out", next: "next" };
+    const narrow = W < 560;
+    for (const c of cols) {
+      const label = narrow ? SHORT[c.name] : c.vals.length > 16 ? `${c.name} · ${c.vals.length}` : c.name;
+      g.fillText(label, Math.min(Math.max(c.x, 30), W - 30), 14);
+    }
+    g.textAlign = "right"; g.fillStyle = tok.ink;
+    NAMES.forEach((nm, j) => g.fillText(nm, inp.x - inp.r - 6, inp.y(j) + 3.5));
+    g.textAlign = "left";
+    NAMES.forEach((nm, j) => g.fillText(f2(next[j]), nxt.x + nxt.r + 6, nxt.y(j) + 3.5));
+    g.textAlign = "start";
+    const firing = (h, l) => h.filter((v) => v > 0.1 * sc[l]).length;
+    $("netOut").textContent = `hidden 1: ${firing(ins.hidden[0], 0)} firing · hidden 2: ${firing(ins.hidden[1], 1)} firing`;
+  }
+
+  function drawFocus(run, st) {
+    lastDrawn = { run, st };
+    if (focus < 0) focus = Math.floor(0.62 * run.n);
+    if (focus >= run.n) focus = run.n - 1;
+    const k = Math.min(Math.floor(st.t), run.traj.length - 2);
+    if (k < 0) return;
+    const key = `${S.model}|${runId(run)}|${k}|${focus}`;
+    const fresh = key !== netKey;
+    if (fresh) { netKey = key; lastIns = model.inspect(run.traj[k], run.n, focus); }
+    const ins = lastIns;
+    const n = run.n;
+
+    if (!fresh) return;
+    $("netNote").textContent = `Boid #${focus}, step ${k} → ${k + 1}. Click another boid to follow it instead.`;
+    drawDiagram(ins);
+
+    // Attention: each head's weights over the swarm, sorted, with the effective number of boids it hears.
+    if (!(netCanvases[1]._w > 40)) return; // the inspector cards are hidden in this mode
+    const ac = ctxOf(netCanvases[1]), W = netCanvases[1]._w, H = netCanvases[1]._h;
+    // Every boid's weight, sorted, in units of an even split (1 = 1/n). The dashed line is the even split.
+    const rowH = (H - 46) / 2, eff = [], peak = [];
+    ac.font = `500 10px ${css().getPropertyValue("--font-data")}`;
+    ins.attn.forEach((a, h) => {
+      const sorted = Array.from(a, (v) => v * n).sort((p, q) => q - p);
+      let ent = 0; for (const v of a) if (v > 0) ent -= v * Math.log(v);
+      eff.push(Math.exp(ent)); peak.push(sorted[0]);
+      const y0 = 14 + h * (rowH + 16), bw = W / n, ymax = Math.max(2, sorted[0]);
+      ac.fillStyle = HEAD()[h];
+      for (let b = 0; b < n; b++) {
+        const bh = (sorted[b] / ymax) * rowH;
+        ac.fillRect(b * bw, y0 + rowH - bh, Math.max(0.6, bw - (bw > 3 ? 1 : 0)), bh);
+      }
+      const yu = y0 + rowH - rowH / ymax;
+      ac.strokeStyle = tok.ink; ac.lineWidth = 1; ac.setLineDash([3, 3]);
+      ac.beginPath(); ac.moveTo(0, yu); ac.lineTo(W, yu); ac.stroke(); ac.setLineDash([]);
+      ac.fillStyle = tok.muted;
+      ac.fillText(`head ${h + 1} · strongest ${sorted[0].toFixed(2)}× even`, 0, y0 - 4);
+    });
+    ac.fillStyle = tok.muted;
+    ac.fillText(`all ${n} boids, sorted · dashed = even split`, 0, H - 2);
+    const how = (e) => (e > 0.9 * n ? "nearly evenly" : e > 0.5 * n ? "broadly" : "selectively");
+    $("attnCap").innerHTML = `<b class="k1">Head 1</b> listens ${how(eff[0])}: about <b>${eff[0].toFixed(0)}</b> of ${n} boids' worth, strongest link ${peak[0].toFixed(2)}× an even share. <b class="k2">Head 2</b>: about <b>${eff[1].toFixed(0)}</b>, strongest ${peak[1].toFixed(2)}×. Stage lines go to boids heard above average.`;
+
+    // The move in the picture plane: flock (attention) then solo (feed-forward), summing to the step
+    const mv = netCanvases[2], mc = ctxOf(mv), S2 = mv._w, o = S2 / 2;
+    const step = ins.flock.map((v, j) => v + ins.solo[j]);
+    const len = (v) => Math.hypot(v[0], v[1]);
+    const big = Math.max(len(ins.flock), len(ins.solo), len(step), 1e-9), k2 = (0.4 * S2) / big;
+    mc.strokeStyle = tok.line; mc.lineWidth = 1;
+    mc.beginPath(); mc.moveTo(o, 0); mc.lineTo(o, S2); mc.moveTo(0, o); mc.lineTo(S2, o); mc.stroke();
+    const arrow = (x0, y0, dx, dy, col, dash) => {
+      const x1 = x0 + dx * k2, y1 = y0 - dy * k2, ang = Math.atan2(y1 - y0, x1 - x0);
+      mc.strokeStyle = col; mc.fillStyle = col; mc.lineWidth = 2; mc.setLineDash(dash ? [4, 3] : []);
+      mc.beginPath(); mc.moveTo(x0, y0); mc.lineTo(x1, y1); mc.stroke(); mc.setLineDash([]);
+      if (Math.hypot(x1 - x0, y1 - y0) > 6) {
+        mc.beginPath(); mc.moveTo(x1, y1);
+        mc.lineTo(x1 - 8 * Math.cos(ang - 0.4), y1 - 8 * Math.sin(ang - 0.4));
+        mc.lineTo(x1 - 8 * Math.cos(ang + 0.4), y1 - 8 * Math.sin(ang + 0.4)); mc.fill();
+      }
+    };
+    arrow(o, o, step[0], step[1], tok.ink, true);
+    arrow(o, o, ins.flock[0], ins.flock[1], tok.accent);
+    arrow(o + ins.flock[0] * k2, o - ins.flock[1] * k2, ins.solo[0], ins.solo[1], tok.pos);
+    mc.fillStyle = tok.muted; mc.font = `500 10px ${css().getPropertyValue("--font-data")}`;
+    mc.fillText(`longest arrow ${big.toFixed(4)}`, 4, S2 - 4);
+    const f4 = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(4);
+    $("moveTable").innerHTML = `<tr><th></th><th class="k1">flock</th><th class="kf">solo</th><th>step</th></tr>` +
+      [0, 1, 4, 5].map((j) => `<tr><td>Δ${NAMES[j]}</td><td>${f4(ins.flock[j])}</td><td>${f4(ins.solo[j])}</td><td>${f4(step[j])}</td></tr>`).join("");
   }
 
   // ---------- 2-D pads: the class-code plane and the style plane ----------
@@ -598,10 +1082,55 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   segmented("segModel", MODELS.map((m) => [m.name, m.title]), "model", () => { model = load(S.model); restart(true); updateLabels(); });
   segmented("segN", [[64, "64"], [128, "128"], [256, "256"], [512, "512"]], "n", () => restart(true));
   segmented("segSteps", [[16, "16"], [32, "32"], [64, "64"], [128, "128"], [256, "256"]], "steps", setSteps);
-  segmented("segSpeed", [[2, "slow"], [4, "normal"], [10, "fast"], [40, "faster"]], "speed");
-  segmented("segMode", [["dots", "boids"], ["ink", "28×28"]], "mode");
-  segmented("segColor", [["origin", "start"], ["style", "s₁ now"]], "color");
-  segmented("segTrails", [["off", "off"], ["on", "on"]], "trails");
+  segmented("segSpeed", [[2, "½×"], [4, "1×"], [10, "2.5×"], [40, "10×"]], "speed");
+  const onOff = [["on", "on"], ["off", "off"]];
+  segmented("segDots", onOff, "dots");
+  segmented("segColor", [["origin", "start"], ["style", "s₁ now"], ["single", "single"]], "color", syncDisplay);
+  segmented("segTrails", [["off", "off"], ["short", "short"], ["full", "full"]], "trails");
+  segmented("segInk", [["off", "off"], ["on", "28×28"]], "ink");
+  segmented("segGrid", onOff, "grid");
+  segmented("segFrame", onOff, "frame");
+  segmented("segDisk", onOff, "disk");
+  segmented("segFollow", onOff, "follow");
+  segmented("segBg", [["theme", "page"], ["white", "white"], ["black", "black"], ["none", "none"]], "bg");
+  const bindRange = (id, key, fmt) => {
+    const el = document.getElementById(id), out = document.getElementById(id + "Out");
+    const show = () => { out.textContent = fmt(S[key]); };
+    el.addEventListener("input", () => { S[key] = +el.value; show(); });
+    show();
+  };
+  bindRange("dotSize", "dotSize", (v) => `${v.toFixed(2)}×`);
+  bindRange("trailAlpha", "trailAlpha", (v) => `${Math.round(v * 100)}%`);
+  const colorIn = document.getElementById("dotColor");
+  colorIn.addEventListener("input", () => { S.single = colorIn.value; syncDisplay(); });
+  function syncDisplay() {
+    document.querySelectorAll(".single-only").forEach((el) => { el.hidden = S.color !== "single"; });
+    $("dotColorOut").textContent = S.single;
+  }
+
+  // Export: the viewer's save prompt inside claude.ai, a plain download everywhere else.
+  const downloadsP = window.claude?.use ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+  const exportOut = document.getElementById("exportOut");
+  const flash = (msg) => { exportOut.textContent = msg; clearTimeout(flash.t); flash.t = setTimeout(() => (exportOut.textContent = ""), 4000); };
+  document.getElementById("exportSvg").addEventListener("click", async () => {
+    if (!lastDrawn) return;
+    const svg = sceneSVG(), name = `digit-swarm-${S.label}-t${lastDrawn.st.t.toFixed(1)}.svg`;
+    const dl = await downloadsP;
+    if (dl) {
+      try { await dl.save({ filename: name, data: svg }); flash("Saved"); }
+      catch (e) { flash(e && e.code === "declined" ? "Not saved" : "Saving isn't available here. Use Copy SVG."); }
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: name });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    flash(`Saved ${name}`);
+  });
+  document.getElementById("copySvg").addEventListener("click", () => {
+    if (!lastDrawn) return;
+    navigator.clipboard.writeText(sceneSVG()).then(() => flash("Copied"), () => flash("Copy isn't allowed here"));
+  });
 
   // More steps extend the current run instead of recomputing it.
   function setSteps() {
@@ -639,16 +1168,565 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     }
   }
 
+  // ---------- the guide: how it works, in pictures ----------
+  const STAB = { steps: [16, 32, 64, 128, 256], original: [0.125, 0.597, 1.530, 1.839, 2.229], stable: [0.143, 0.135, 0.222, 0.514, 1.143] };
+  const CHAPTERS = [
+    { id: "boid", narrow: 1.9, nav: "Boid", aspect: 2.6,
+      title: "Every boid is six numbers",
+      text: "A boid is one bird in the flock: a point with six coordinates. Where it is, which digit to draw, and in which handwriting. The last four are the same for every boid.",
+      math: "boid = (x, y, c₁, c₂, s₁, s₂)", note: "a point in ℝ⁶; the stage only shows x and y" },
+    { id: "start", narrow: 0.9, nav: "Start", aspect: 2.1,
+      title: "It starts on a sunflower",
+      text: "Every run starts from the same evenly spread disk. A boid's starting spot is its name, so the same boid lands on the same part of every digit.",
+      math: "rₖ = 0.9 · √(k / n)\nθₖ = k · 137.5°", note: "137.5° is the golden angle: no two boids ever line up" },
+    { id: "step", narrow: 0.66, nav: "Step", aspect: 2,
+      title: "One step: listen, then think",
+      text: "Each boid listens to the whole flock and moves a little. Then it thinks on its own and moves a little more.",
+      math: "x ← x + 0.1 · attend(x, flock)\nx ← x + 0.1 · mlp(x)", note: "attend: a weighted average over every boid, 2 heads. mlp: a small neural net, 6 → 256 → 256 → 6" },
+    { id: "repeat", narrow: 1.4, nav: "Repeat", aspect: 3.1,
+      title: "The same step, sixteen times",
+      text: "One set of rules, applied again and again. Nobody tells a boid where to go. The digit appears from the flock.",
+      math: "x₁₆ = B(B(⋯ B(x₀) ⋯))", note: "B is the same block every time: one set of 69,384 numbers" },
+    { id: "prompt", narrow: 1.0, nav: "Prompt", aspect: 1.6,
+      title: "The prompt picks the digit",
+      text: "Ten points on a circle, one per digit. Every boid carries the same one. A point between two digits draws a blend.",
+      math: "cₖ = 2 · (cos 36°k, sin 36°k)", note: "pinned: the flock reads it but never changes it" },
+    { id: "style", narrow: 1.0, nav: "Style", aspect: 1.6,
+      title: "The style picks the handwriting",
+      text: "A second dial sets slant, width and loops. Pick a random point and you get a new handwriting.",
+      math: "s ~ N(0, I)", note: "free: the flock may change it as it moves, which lets paths cross" },
+    { id: "learn", narrow: 0.8, nav: "Learning", aspect: 2.4,
+      title: "How it learned",
+      text: "Show it a real digit. Guess its handwriting, let the flock draw, blur both, and measure the gap. Nudge every number to make the gap smaller. Repeat: 60,000 digits, 20 times over.",
+      math: "gap  = Σσ ‖Gσ∗flock − Gσ∗ink‖²\nloss = gap + 0.01 · KL(q ‖ N(0,I))", note: "Gσ blurs at σ = 0.75, 1.5 and 3 px. q is the guessed style. The KL term keeps guesses inside the round cloud, so random styles look real." },
+    { id: "stable", narrow: 1.2, nav: "Stability", aspect: 1.9,
+      title: "Teaching it to hold still",
+      text: "The original model was only checked at step 16, so afterwards it drifts apart. The stable model was also told to keep still for 16 more steps.",
+      math: "loss += Σ ‖xₜ₊₁ − xₜ‖²,   16 ≤ t &lt; 32", note: "plus a small shake at step 16, so the digit learns to pull itself back. Chart: measured on 500 test digits." },
+    { id: "weights", narrow: 1.1, nav: "Weights", aspect: 2.1,
+      title: "Where the 69,384 numbers live",
+      text: "Almost all of them sit in one 256 × 256 layer: each boid's private thinking. Listening to the flock costs only 258.",
+      math: "attention      258\nmlp         69,126", note: "every square below is one real weight: teal positive, orange negative" },
+  ];
+
+  const guideEl = $("guide"), guideBody = $("guideBody"), guideNav = $("guideNav"), helpBtn = $("helpBtn");
+  const stableExtra = `<div class="tip" id="stableTip" hidden></div>
+    <table class="sr-only"><caption>Error against the real digit by step, lower is better</caption><tr><th>step</th><th>Original</th><th>Stable</th></tr>${STAB.steps.map((t, i) => `<tr><td>${t}</td><td>${STAB.original[i]}</td><td>${STAB.stable[i]}</td></tr>`).join("")}</table>`;
+  guideBody.insertAdjacentHTML("beforeend", CHAPTERS.map((c, i) => `
+    <article class="chapter" id="ch-${c.id}">
+      <div class="ch-text">
+        <span class="ch-num">${String(i + 1).padStart(2, "0")}</span>
+        <h3>${c.title}</h3>
+        <p>${c.text}</p>
+        <div class="math">${c.math}<small>${c.note}</small></div>
+      </div>
+      <figure class="ch-fig">
+        <canvas data-fig="${c.id}" style="aspect-ratio: ${c.aspect}; max-width: calc(66vh * ${c.aspect})" role="img" aria-label="${c.title}"></canvas>${c.id === "stable" ? stableExtra : ""}
+      </figure>
+    </article>`).join("") + `
+    <section class="guide-end">
+      <div><h3>Shortcuts</h3><div class="keys">
+        <span><kbd>0</kbd>–<kbd>9</kbd>pick a digit</span>
+        <span><kbd>space</kbd>play or pause</span>
+        <span><kbd>S</kbd>sample a style</span>
+        <span><kbd>E</kbd><kbd>I</kbd><kbd>D</kbd>switch mode</span>
+        <span><kbd>←</kbd><kbd>→</kbd>step through time</span>
+        <span><kbd>?</kbd>this guide</span>
+      </div></div>
+      <div><h3>The model you are running</h3><p id="modelNote"></p></div>
+    </section>`);
+  guideNav.innerHTML = CHAPTERS.map((c, i) => `<button type="button" data-ch="${c.id}"><span>${String(i + 1).padStart(2, "0")}</span>${c.nav}</button>`).join("");
+  guideNav.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) $("ch-" + b.dataset.ch).scrollIntoView({ block: "start" }); });
+  const figs = Object.fromEntries([...guideBody.querySelectorAll("canvas[data-fig]")].map((cv) => [cv.dataset.fig, cv]));
+  const navIO = new IntersectionObserver((ents) => {
+    for (const en of ents) if (en.isIntersecting) guideNav.querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", String("ch-" + b.dataset.ch === en.target.id)));
+  }, { root: guideBody, rootMargin: "-40% 0px -55% 0px" });
+  guideBody.querySelectorAll(".chapter").forEach((el) => navIO.observe(el));
+
+  try { if (!localStorage.getItem("digit-swarm-guide-seen")) helpBtn.classList.add("new"); } catch (e) { helpBtn.classList.add("new"); }
+  function openGuide() {
+    guideEl.hidden = false;
+    helpBtn.classList.remove("new");
+    try { localStorage.setItem("digit-swarm-guide-seen", "1"); } catch (e) {}
+    $("guideClose").focus();
+    requestAnimationFrame(() => { drawGuide(); computeGuide(); });
+  }
+  function closeGuide() { guideEl.hidden = true; helpBtn.focus(); }
+  helpBtn.addEventListener("click", openGuide);
+  $("guideClose").addEventListener("click", closeGuide);
+  new ResizeObserver(() => { if (!guideEl.hidden) requestAnimationFrame(drawGuide); }).observe(guideBody);
+
+  // --- live data for the figures, computed a few runs at a time so the page stays responsive
+  const G = { key: "", gen: 0, d: {}, hover: null };
+  const sfCache = {};
+  const SF = (n) => (sfCache[n + "|" + model.diskRadius] ||= SwarmModel.sunflower(n, model.diskRadius));
+  function simulate(n, code, style, steps = 16) {
+    const x = model.initialState(n, 0, style);
+    for (let i = 0; i < n; i++) { x[i * D + 2] = code[0]; x[i * D + 3] = code[1]; }
+    const traj = [x.slice()];
+    for (let t = 0; t < steps; t++) traj.push(model.step(x, n).slice());
+    return traj;
+  }
+  function inkSeven() {
+    // An illustrative handwritten 7, rasterised onto the 28 x 28 MNIST grid.
+    const c = document.createElement("canvas"); c.width = c.height = 28;
+    const g = c.getContext("2d"), P = (x, y) => [((x + 1) / 2) * 28, ((1 - y) / 2) * 28];
+    g.lineCap = g.lineJoin = "round"; g.lineWidth = 2.6; g.strokeStyle = "#000";
+    g.beginPath(); g.moveTo(...P(-0.5, 0.56)); g.lineTo(...P(0.5, 0.62)); g.lineTo(...P(0.04, -0.74)); g.stroke();
+    const d = g.getImageData(0, 0, 28, 28).data, ink = new Float64Array(784);
+    for (let i = 0; i < 784; i++) ink[i] = d[4 * i + 3] / 255;
+    return ink;
+  }
+  // The training loss for one blur width, exactly as splat_mmd computes it in swarm.py.
+  function gapMap(x, n, ink, sigPx) {
+    const s = sigPx * (2 / 28), norm = 1 / (2 * Math.PI * s * s);
+    const gc = Array.from({ length: 28 }, (_, i) => ((i + 0.5) / 28) * 2 - 1);
+    const K = gc.map((a) => gc.map((b) => Math.exp(-0.5 * ((a - b) / s) ** 2)));
+    const pred = new Float64Array(784), kx = new Float64Array(28), ky = new Float64Array(28);
+    for (let b = 0; b < n; b++) {
+      for (let q = 0; q < 28; q++) { kx[q] = Math.exp(-0.5 * ((x[b * D] - gc[q]) / s) ** 2); ky[q] = Math.exp(-0.5 * ((x[b * D + 1] + gc[q]) / s) ** 2); }
+      for (let r = 0; r < 28; r++) for (let q = 0; q < 28; q++) pred[r * 28 + q] += (ky[r] * kx[q] * norm) / n;
+    }
+    let tot = 0; for (const v of ink) tot += v;
+    const tmp = new Float64Array(784), tgt = new Float64Array(784);
+    for (let r = 0; r < 28; r++) for (let q = 0; q < 28; q++) { let a = 0; for (let j = 0; j < 28; j++) a += K[r][j] * ink[j * 28 + q]; tmp[r * 28 + q] = a / tot; }
+    for (let r = 0; r < 28; r++) for (let q = 0; q < 28; q++) { let a = 0; for (let j = 0; j < 28; j++) a += tmp[r * 28 + j] * K[j][q]; tgt[r * 28 + q] = a * norm; }
+    let num = 0, den = 0; const diff = new Float64Array(784);
+    for (let i = 0; i < 784; i++) { diff[i] = pred[i] - tgt[i]; num += diff[i] ** 2; den += tgt[i] ** 2; }
+    return { diff, loss: num / den };
+  }
+  function computeGuide() {
+    const key = [S.model, ...S.code.map((v) => v.toFixed(3)), ...S.style.map((v) => v.toFixed(3))].join("|");
+    if (key === G.key) return;
+    G.key = key; G.d = {};
+    const gen = ++G.gen, lab = S.label, nxt = (lab + 1) % 10, code = S.code.slice(), style = S.style.slice();
+    const tasks = [
+      () => { const tr = simulate(96, code, style); G.d.main = { tr, ins: model.inspect(tr[5], 96, 59) }; return ["step", "repeat"]; },
+      ...Array.from({ length: 10 }, (_, k) => () => { (G.d.digits ||= [])[k] = simulate(64, model.codes[k], [0, 0]).pop(); return k === 9 ? ["start", "prompt"] : []; }),
+      () => { const a = model.codes[lab], b = model.codes[nxt]; G.d.blend = { from: lab, to: nxt, x: simulate(64, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], [0, 0]).pop() }; return ["prompt"]; },
+      ...Array.from({ length: 25 }, (_, i) => () => { (G.d.grid ||= [])[i] = simulate(48, code, [(i % 5) - 2, 2 - Math.floor(i / 5)]).pop(); return i === 24 ? ["style"] : []; }),
+      () => {
+        const mu = [0.6, -0.4], x = simulate(96, model.codes[7], mu).pop(), ink = inkSeven();
+        const gaps = [0.75, 1.5, 3].map((sg) => gapMap(x, 96, ink, sg));
+        G.d.learn = { x, ink, mu, diff: gaps[1].diff, gap: gaps.reduce((a, q) => a + q.loss, 0) / 3 };
+        return ["learn"];
+      },
+    ];
+    let i = 0;
+    const tick = () => {
+      if (gen !== G.gen) return;
+      if (guideEl.hidden) { G.key = ""; return; } // finish next time it opens
+      const t0 = performance.now();
+      while (i < tasks.length && performance.now() - t0 < 24) tasks[i++]().forEach(drawFig);
+      if (i < tasks.length) setTimeout(tick, 0);
+    };
+    tick();
+  }
+
+  // --- drawing helpers
+  function figCtx(cv) {
+    const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const w = Math.round(r.width * d), h = Math.round(r.height * d);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const g = cv.getContext("2d");
+    g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    return [g, r.width, r.height];
+  }
+  function label(g, str, x, y, o = {}) {
+    const fam = o.display ? "--font-display" : o.body ? "--font-body" : "--font-data";
+    g.font = `${o.weight || 500} ${o.size || 11}px ${css().getPropertyValue(fam)}`;
+    g.fillStyle = o.color || tok.muted; g.textAlign = o.align || "center"; g.textBaseline = o.base || "alphabetic";
+    g.fillText(str, x, y);
+    g.textAlign = "start"; g.textBaseline = "alphabetic";
+  }
+  const rgba = (hex, a) => { const [r, gg, b] = hexRGB(hex); return `rgba(${r},${gg},${b},${a})`; };
+  const boidRGB = (x0, y0, a = 1) => {
+    const r = (x0 + 1) / 2, gg = (y0 + 1) / 2, b = Math.min(1, 1 - (0.5 * (r + gg)) / 2), k = 255 * tok.gain;
+    return `rgba(${Math.round(r * k)},${Math.round(gg * k)},${Math.round(b * k)},${a})`;
+  };
+  function frameBox(g, cx, cy, P) { g.strokeStyle = tok.line; g.lineWidth = 1; g.beginPath(); g.roundRect(cx - P / 2, cy - P / 2, P, P, 10); g.stroke(); }
+  function flock(g, x, n, stride, cx, cy, size, ext, r, alpha = 1) {
+    const init = SF(n);
+    for (let i = 0; i < n; i++) {
+      g.fillStyle = boidRGB(init[2 * i], init[2 * i + 1], alpha);
+      g.beginPath(); g.arc(cx + (x[i * stride] / ext) * (size / 2), cy - (x[i * stride + 1] / ext) * (size / 2), r, 0, 2 * Math.PI); g.fill();
+    }
+  }
+  const mini = (g, x, n, cx, cy, size) => flock(g, x, n, D, cx, cy, size, 1.1, Math.max(1, size * 0.024));
+  function arrow(g, x0, y0, x1, y1, color, w = 2, dash = null) {
+    const a = Math.atan2(y1 - y0, x1 - x0), h = Math.min(9, Math.hypot(x1 - x0, y1 - y0) * 0.4);
+    g.strokeStyle = color; g.fillStyle = color; g.lineWidth = w; g.setLineDash(dash || []);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1 - Math.cos(a) * h * 0.6, y1 - Math.sin(a) * h * 0.6); g.stroke(); g.setLineDash([]);
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - h * Math.cos(a - 0.42), y1 - h * Math.sin(a - 0.42)); g.lineTo(x1 - h * Math.cos(a + 0.42), y1 - h * Math.sin(a + 0.42)); g.fill();
+  }
+  function notYet(g, W, H) { label(g, "drawing from the model…", W / 2, H / 2, { color: tok.faint }); }
+
+  const FIG = {
+    // 1. A boid carries three planes' worth of coordinates.
+    boid(g, W, H) {
+      const P = Math.min(H * 0.64, W / 3.7), gap = (W - 3 * P) / 4, cy = H * 0.47;
+      const cx = [0, 1, 2].map((i) => gap + P / 2 + i * (P + gap));
+      const names = [["x, y", "where it is"], ["c₁, c₂", "which digit"], ["s₁, s₂", "which handwriting"]];
+      cx.forEach((c, i) => {
+        frameBox(g, c, cy, P);
+        label(g, names[i][0], c, cy + P / 2 + 22, { color: tok.ink, size: 12 });
+        label(g, names[i][1], c, cy + P / 2 + 39, { body: true, size: 12 });
+      });
+      const init = SF(96), e1 = 1.15, X1 = (v) => cx[0] + (v / e1) * (P / 2), Y1 = (v) => cy - (v / e1) * (P / 2);
+      for (let i = 0; i < 96; i++) { g.fillStyle = boidRGB(init[2 * i], init[2 * i + 1]); g.beginPath(); g.arc(X1(init[2 * i]), Y1(init[2 * i + 1]), P * 0.016, 0, 7); g.fill(); }
+      const hx = X1(init[118]), hy = Y1(init[119]);
+      const e2 = 2.9, X2 = (v) => cx[1] + (v / e2) * (P / 2), Y2 = (v) => cy - (v / e2) * (P / 2);
+      g.strokeStyle = tok.line; g.setLineDash([2, 4]); g.beginPath(); g.arc(cx[1], cy, (2 / e2) * (P / 2), 0, 7); g.stroke(); g.setLineDash([]);
+      model.codes.forEach(([u, v], k) => {
+        g.fillStyle = tok.faint; g.beginPath(); g.arc(X2(u), Y2(v), 2, 0, 7); g.fill();
+        label(g, String(k), X2(u * 1.24), Y2(v * 1.24), { display: true, weight: 600, size: Math.round(P * 0.075), color: tok.muted, base: "middle" });
+      });
+      const e3 = 3.2, X3 = (v) => cx[2] + (v / e3) * (P / 2), Y3 = (v) => cy - (v / e3) * (P / 2);
+      g.strokeStyle = tok.line; g.beginPath(); g.moveTo(X3(-3), cy); g.lineTo(X3(3), cy); g.moveTo(cx[2], Y3(3)); g.lineTo(cx[2], Y3(-3)); g.stroke();
+      [1, 2].forEach((k) => { g.setLineDash(k === 1 ? [] : [2, 4]); g.beginPath(); g.arc(cx[2], cy, (k / e3) * (P / 2), 0, 7); g.stroke(); });
+      g.setLineDash([]);
+      const targets = [[X2(S.code[0]), Y2(S.code[1])], [X3(S.style[0]), Y3(S.style[1])]];
+      // the highlighted boid carries both points: the same two values for every boid
+      g.strokeStyle = rgba(tok.accent, 0.5); g.lineWidth = 1.2;
+      const lift = cy - P * 0.62;
+      for (const [tx, ty] of targets) { g.beginPath(); g.moveTo(hx, hy); g.bezierCurveTo(hx, lift, tx, lift, tx, ty); g.stroke(); }
+      label(g, "every boid carries the same two points", (cx[0] + cx[2]) / 2 + P * 0.1, cy - P / 2 - 8, { color: tok.accent, size: 11 });
+      g.strokeStyle = tok.accent; g.lineWidth = 1.5; g.beginPath(); g.arc(hx, hy, P * 0.045, 0, 7); g.stroke();
+      for (const [tx, ty] of targets) { g.fillStyle = tok.accent; g.beginPath(); g.arc(tx, ty, 4.5, 0, 7); g.fill(); }
+    },
+
+    // 2. The sunflower start, its golden angle, and identity through to the digit.
+    start(g, W, H) {
+      const tall = W < 560, n = 233, init = SF(n), Dd = tall ? Math.min(W * 0.72, H * 0.56) : H * 0.8, cx = tall ? W / 2 : W * 0.26, cy = tall ? H * 0.34 : H / 2, X = (v) => cx + (v / 0.95) * (Dd / 2), Y = (v) => cy - (v / 0.95) * (Dd / 2);
+      g.lineWidth = 0.8;
+      for (const st of [21, 34]) {
+        g.strokeStyle = rgba(tok.line, 0.9); g.beginPath();
+        for (let k = 0; k + st < n; k++) { g.moveTo(X(init[2 * k]), Y(init[2 * k + 1])); g.lineTo(X(init[2 * (k + st)]), Y(init[2 * (k + st) + 1])); }
+        g.stroke();
+      }
+      for (let i = 0; i < n; i++) { g.fillStyle = boidRGB(init[2 * i], init[2 * i + 1]); g.beginPath(); g.arc(X(init[2 * i]), Y(init[2 * i + 1]), Dd * 0.0085, 0, 7); g.fill(); }
+      // the golden angle between boid k and boid k + 1
+      const k = 60, a1 = Math.atan2(init[2 * k + 1], init[2 * k]), a2 = Math.atan2(init[2 * k + 3], init[2 * k + 2]);
+      g.strokeStyle = tok.accent; g.lineWidth = 1.2;
+      const reach = (j) => 1.02 / Math.hypot(init[2 * j], init[2 * j + 1]); // rays run just past the rim
+      for (const j of [k, k + 1]) { g.beginPath(); g.moveTo(cx, cy); g.lineTo(X(init[2 * j] * reach(j)), Y(init[2 * j + 1] * reach(j))); g.stroke(); }
+      let d = a2 - a1; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      const ar = Dd * 0.12;
+      g.beginPath(); g.arc(cx, cy, ar, -a1, -(a1 + d), d > 0); g.stroke();
+      const am = a1 + d / 2;
+      label(g, "137.5°", cx + Math.cos(am) * (ar + 26), cy - Math.sin(am) * (ar + 26), { color: tok.accent, base: "middle" });
+      for (const [j, t] of [[k, "k"], [k + 1, "k + 1"]]) {
+        const f = reach(j) * 1.1;
+        label(g, t, X(init[2 * j] * f), Y(init[2 * j + 1] * f), { size: 10.5, color: tok.accent, base: "middle" });
+      }
+      // identity: the same colours land on the same parts of every digit
+      const dg = G.d.digits;
+      const m = tall ? Math.min(W * 0.24, H * 0.2) : Math.min(H * 0.36, W * 0.13);
+      const xs = (tall ? [0.2, 0.5, 0.8] : [0.64, 0.78, 0.92]).map((f) => W * f), my = tall ? H * 0.86 : cy;
+      label(g, "same colour, same boid, every digit", xs[1], my - m / 2 - 12, { size: 11 });
+      if (tall) {
+        arrow(g, cx, cy + Dd / 2 + 8, cx, my - m / 2 - 30, tok.faint, 1.2);
+        label(g, "16 steps", cx + 10, (cy + Dd / 2 + my - m / 2 - 22) / 2 + 4, { size: 10.5, color: tok.faint, align: "left" });
+      } else {
+        const ax0 = cx + Dd / 2 + 18, ax1 = xs[0] - m / 2 - 8;
+        arrow(g, ax0, cy, ax1, cy, tok.faint, 1.2);
+        label(g, "16 steps", (ax0 + ax1) / 2, cy - 10, { size: 10.5, color: tok.faint });
+      }
+      [0, 3, 7].forEach((digit, i) => { if (dg && dg[digit]) mini(g, dg[digit], 64, xs[i], my, m); else label(g, "…", xs[i], my, { color: tok.faint }); });
+    },
+
+    // 3. One step for one boid: lines to everyone it listens to, and the two nudges, enlarged.
+    step(g, W, H) {
+      const m = G.d.main; if (!m) return notYet(g, W, H);
+      const tall = W < 560;
+      const P = tall ? Math.min(W * 0.86, H * 0.5) : H * 0.92, ext = 1.15, cx = tall ? W / 2 : P / 2 + 4, cy = tall ? P / 2 + 4 : H / 2;
+      const X = (v) => cx + (v / ext) * (P / 2), Y = (v) => cy - (v / ext) * (P / 2);
+      const x = m.tr[5], n = 96, f = 59, ins = m.ins, avg = ins.attn[0].map((v, j) => (v + ins.attn[1][j]) / 2);
+      const fx = X(x[f * D]), fy = Y(x[f * D + 1]);
+      g.lineWidth = 0.8;
+      for (let j = 0; j < n; j++) if (j !== f) { g.strokeStyle = rgba(tok.accent, Math.min(0.6, avg[j] * n * 0.2)); g.beginPath(); g.moveTo(fx, fy); g.lineTo(X(x[j * D]), Y(x[j * D + 1])); g.stroke(); }
+      flock(g, x, n, D, cx, cy, P, ext, P * 0.012);
+      g.strokeStyle = tok.ink; g.lineWidth = 1.5; g.beginPath(); g.arc(fx, fy, P * 0.03, 0, 7); g.stroke();
+      label(g, "listens to all 96 boids, almost equally", cx, tall ? cy + P / 2 + 16 : H - 6, { size: 11 });
+      // the lens
+      const R = tall ? Math.min(W * 0.28, H * 0.17) : Math.min(H * 0.36, W * 0.2);
+      const zx = tall ? W / 2 : W * 0.73, zy = tall ? cy + P / 2 + 50 + R : H * 0.47;
+      g.strokeStyle = tok.line; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(fx + P * 0.03, fy); g.lineTo(zx - R, zy); g.stroke();
+      g.beginPath(); g.arc(zx, zy, R, 0, 7); g.stroke();
+      const fl = [ins.flock[0], ins.flock[1]], so = [ins.solo[0], ins.solo[1]], st = [fl[0] + so[0], fl[1] + so[1]];
+      const len = (v) => Math.hypot(v[0], v[1]), big = Math.max(len(fl), len(so), len(st), 1e-9), k = (R * 0.78) / big;
+      const ox = zx - (st[0] * k) / 2, oy = zy + (st[1] * k) / 2, tx = ox + fl[0] * k, ty = oy - fl[1] * k;
+      arrow(g, ox, oy, ox + st[0] * k, oy - st[1] * k, tok.muted, 1.4, [4, 4]);
+      arrow(g, ox, oy, tx, ty, tok.accent, 2.6);
+      arrow(g, tx, ty, tx + so[0] * k, ty - so[1] * k, tok.pos, 2.6);
+      g.fillStyle = boidRGB(SF(96)[2 * f], SF(96)[2 * f + 1]); g.beginPath(); g.arc(ox, oy, 5, 0, 7); g.fill();
+      const items = [["listen", tok.accent, false], ["think", tok.pos, false], ["= one step", tok.muted, true]];
+      let lx = zx - 118;
+      for (const [t, c, dashed] of items) {
+        g.strokeStyle = c; g.lineWidth = dashed ? 1.4 : 2.6; g.setLineDash(dashed ? [4, 4] : []);
+        g.beginPath(); g.moveTo(lx, zy + R + 18); g.lineTo(lx + 18, zy + R + 18); g.stroke(); g.setLineDash([]);
+        label(g, t, lx + 24, zy + R + 22, { align: "left", size: 12, body: true, weight: 600, color: c });
+        lx += 24 + g.measureText(t).width + 18;
+      }
+      label(g, `the two nudges of the ringed boid, enlarged ${Math.round(k / (P / 2 / ext))}×`, zx, zy - R - 10, { size: 11, color: tok.faint });
+    },
+
+    // 4. The same block, applied again and again.
+    repeat(g, W, H) {
+      const m = G.d.main; if (!m) return notYet(g, W, H);
+      const tall = W < 560, ts = [0, 1, 2, 4, 8, 16], cols = tall ? 3 : ts.length, rows = tall ? 2 : 1;
+      const P = tall ? Math.min((W - 24) / 3.4, H / 2.7) : Math.min(H * 0.7, (W - 24) / (cols + 0.4)), gap = (W - cols * P) / (cols + 1), ext = 1.15;
+      const rowY = (r) => (rows === 1 ? H * 0.5 : H * (r ? 0.74 : 0.27));
+      const init = SF(96);
+      ts.forEach((t, idx) => {
+        const c = idx % cols, cy = rowY(Math.floor(idx / cols));
+        const x0 = gap + P / 2 + c * (P + gap), X = (v) => x0 + (v / ext) * (P / 2), Y = (v) => cy - (v / ext) * (P / 2);
+        frameBox(g, x0, cy, P);
+        if (idx > 0) {
+          const prev = ts[idx - 1];
+          g.lineWidth = 1;
+          for (let i = 0; i < 96; i++) {
+            g.strokeStyle = boidRGB(init[2 * i], init[2 * i + 1], 0.35); g.beginPath();
+            for (let s2 = prev; s2 <= t; s2++) { const p = m.tr[s2]; s2 === prev ? g.moveTo(X(p[i * D]), Y(p[i * D + 1])) : g.lineTo(X(p[i * D]), Y(p[i * D + 1])); }
+            g.stroke();
+          }
+          const times = t - prev, txt = times > 1 ? `B × ${times}` : "B";
+          if (c > 0) label(g, txt, x0 - P / 2 - gap / 2, cy - P / 2 - 10, { color: tok.accent, size: 11 });
+          else label(g, `${txt} →`, x0 - P / 2, cy - P / 2 - 10, { color: tok.accent, size: 11, align: "left" });
+        }
+        flock(g, m.tr[t], 96, D, x0, cy, P, ext, Math.max(1.2, P * 0.017));
+        label(g, `t = ${t}`, x0, cy + P / 2 + 20, { color: tok.ink, size: 12 });
+      });
+    },
+
+    // 5. Ten codes on a circle, each drawn by the flock, and a blend in the middle.
+    prompt(g, W, H) {
+      const d = G.d.digits; if (!d || !d[9]) return notYet(g, W, H);
+      const cx = W / 2, cy = H / 2, R = H * 0.36, m = R * 0.5;
+      g.strokeStyle = tok.line; g.setLineDash([2, 5]); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke(); g.setLineDash([]);
+      const pos = model.codes.map(([u, v]) => { const a = Math.atan2(v, u); return [cx + R * Math.cos(a), cy - R * Math.sin(a), a]; });
+      const b = G.d.blend;
+      if (b) {
+        g.strokeStyle = rgba(tok.accent, 0.45); g.setLineDash([3, 4]); g.lineWidth = 1;
+        for (const k of [b.from, b.to]) { g.beginPath(); g.moveTo(cx, cy); g.lineTo(pos[k][0], pos[k][1]); g.stroke(); }
+        g.setLineDash([]);
+        g.fillStyle = tok.accent ? rgba(tok.accent, 0.07) : "transparent"; g.beginPath(); g.arc(cx, cy, m * 0.8, 0, 7); g.fill();
+        mini(g, b.x, 64, cx, cy, m * 1.3);
+        label(g, `between ${b.from} and ${b.to}`, cx, cy + m * 0.8 + 16, { size: 11, color: tok.accent });
+      }
+      pos.forEach(([px, py, a], k) => {
+        g.fillStyle = tok.surface; g.beginPath(); g.arc(px, py, m * 0.56, 0, 7); g.fill();
+        mini(g, d[k], 64, px, py, m);
+        label(g, String(k), cx + (R + m * 0.82) * Math.cos(a), cy - (R + m * 0.82) * Math.sin(a), { display: true, weight: 600, size: 13, color: tok.muted, base: "middle" });
+      });
+    },
+
+    // 6. The style plane, sampled on a grid, over the N(0, I) prior.
+    style(g, W, H) {
+      const gr = G.d.grid; if (!gr || !gr[24]) return notYet(g, W, H);
+      const Gs = Math.min(H * 0.84, W * 0.62), cell = Gs / 5, x0 = W / 2 - Gs / 2, y0 = (H - Gs) / 2 - 6, ccx = x0 + Gs / 2, ccy = y0 + Gs / 2;
+      g.strokeStyle = tok.line; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x0 - 10, ccy); g.lineTo(x0 + Gs + 10, ccy); g.moveTo(ccx, y0 - 6); g.lineTo(ccx, y0 + Gs + 6); g.stroke();
+      [1, 2].forEach((k) => { g.setLineDash(k === 1 ? [] : [2, 4]); g.beginPath(); g.arc(ccx, ccy, k * cell, 0, 7); g.stroke(); });
+      g.setLineDash([]);
+      label(g, "1σ", ccx + cell * 0.72, ccy - cell * 0.72, { size: 10.5, color: tok.faint });
+      label(g, "2σ", ccx + cell * 1.43, ccy - cell * 1.43, { size: 10.5, color: tok.faint });
+      for (let i = 0; i < 25; i++) mini(g, gr[i], 48, x0 + ((i % 5) + 0.5) * cell, y0 + (Math.floor(i / 5) + 0.5) * cell, cell * 0.9);
+      for (let c = 0; c < 5; c++) label(g, String(c - 2).replace("-", "−"), x0 + (c + 0.5) * cell, y0 + Gs + 18, { size: 10.5 });
+      for (let r = 0; r < 5; r++) label(g, String(2 - r).replace("-", "−"), x0 - 18, y0 + (r + 0.5) * cell, { size: 10.5, base: "middle" });
+      label(g, "s₁", x0 + Gs + 18, ccy + 4, { color: tok.ink, size: 12 });
+      label(g, "s₂", ccx, y0 - 10, { color: tok.ink, size: 12 });
+    },
+
+    // 7. One training example: target ink, style guess, the flock's drawing, and the blurred gap.
+    learn(g, W, H) {
+      const L = G.d.learn; if (!L) return notYet(g, W, H);
+      const tall = W < 560;
+      const P = tall ? Math.min(W * 0.36, H * 0.29) : Math.min(H * 0.54, W / 5.4), gap = (W - 4 * P) / 5, top = H * 0.06;
+      const r1 = top + P / 2, r2 = r1 + P + 64;
+      const at = tall ? [[W * 0.28, r1], [W * 0.72, r1], [W * 0.28, r2], [W * 0.72, r2]] : [0, 1, 2, 3].map((i) => [gap + P / 2 + i * (P + gap), r1]);
+      const cxs = at.map((q) => q[0]), cys = at.map((q) => q[1]), cy = r1;
+      const titles = [["a real 7", "28 × 28 ink"], ["guess the hand", "q(s | digit)"], ["flock draws", "16 steps"], ["blur, compare", `gap ${L.gap.toFixed(2)}`]];
+      cxs.forEach((c, i) => { frameBox(g, c, cys[i], P); label(g, titles[i][0], c, cys[i] + P / 2 + 20, { color: tok.ink, size: 11.5 }); label(g, titles[i][1], c, cys[i] + P / 2 + 36, { size: 11 }); });
+      const pix = (i, vals, color) => {
+        const c = cxs[i], cell = (P * 0.86) / 28, ox = c - cell * 14, oy = cys[i] - cell * 14;
+        for (let q = 0; q < 784; q++) { const v = vals(q); if (!v) continue; g.fillStyle = rgba(color(q), v); g.fillRect(ox + (q % 28) * cell, oy + Math.floor(q / 28) * cell, cell + 0.3, cell + 0.3); }
+        g.strokeStyle = tok.line; g.strokeRect(ox, oy, cell * 28, cell * 28);
+      };
+      pix(0, (q) => (L.ink[q] > 0.03 ? L.ink[q] : 0), () => tok.ink);
+      // style guess: a small cloud inside the prior circle
+      const e = 3, X2 = (v) => cxs[1] + (v / e) * (P / 2), Y2 = (v) => cys[1] - (v / e) * (P / 2);
+      g.strokeStyle = tok.line; g.setLineDash([2, 4]); g.beginPath(); g.arc(cxs[1], cys[1], (1 / e) * (P / 2), 0, 7); g.stroke(); g.setLineDash([]);
+      label(g, "N(0, I)", cxs[1] + (0.72 / e) * (P / 2), cys[1] - (0.92 / e) * (P / 2), { size: 10, color: tok.faint });
+      g.fillStyle = rgba(tok.accent, 0.16); g.strokeStyle = tok.accent; g.lineWidth = 1.2;
+      g.beginPath(); g.ellipse(X2(L.mu[0]), Y2(L.mu[1]), (0.38 / e) * (P / 2), (0.26 / e) * (P / 2), 0, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = tok.accent; g.beginPath(); g.arc(X2(L.mu[0]), Y2(L.mu[1]), 3, 0, 7); g.fill();
+      flock(g, L.x, 96, D, cxs[2], cys[2], P, 1.15, P * 0.016);
+      let mx = 0; for (const v of L.diff) mx = Math.max(mx, Math.abs(v));
+      pix(3, (q) => Math.min(1, Math.abs(L.diff[q]) / mx), (q) => (L.diff[q] > 0 ? tok.pos : tok.neg));
+      if (tall) {
+        arrow(g, cxs[0] + P / 2 + 6, r1, cxs[1] - P / 2 - 6, r1, tok.faint, 1.2);
+        arrow(g, cxs[1] - P * 0.25, r1 + P / 2 + 44, cxs[2] + P * 0.25, r2 - P / 2 - 6, tok.faint, 1.2);
+        arrow(g, cxs[2] + P / 2 + 6, r2, cxs[3] - P / 2 - 6, r2, tok.faint, 1.2);
+        const xr = W - 6;
+        g.strokeStyle = tok.accent; g.lineWidth = 1.4;
+        g.beginPath(); g.moveTo(cxs[3] + P / 2 + 4, r2); g.lineTo(xr - 6, r2); g.quadraticCurveTo(xr, r2, xr, r2 - 6); g.lineTo(xr, r1 + 6); g.quadraticCurveTo(xr, r1, xr - 6, r1); g.stroke();
+        arrow(g, xr - 4, r1, cxs[1] + P / 2 + 4, r1, tok.accent, 1.4);
+        label(g, "nudge every weight to shrink the gap, then repeat", W / 2, r2 + P / 2 + 62, { color: tok.accent, size: 11.5, body: true, weight: 600 });
+        label(g, "teal: flock without ink · orange: ink without flock", W / 2, H - 6, { size: 10.5, color: tok.faint });
+      } else {
+        for (let i = 0; i < 3; i++) arrow(g, cxs[i] + P / 2 + 6, cy, cxs[i + 1] - P / 2 - 6, cy, tok.faint, 1.2);
+        // the loop back: shrink the gap by nudging the weights upstream
+        const yL = cy + P / 2 + 58, xr = cxs[3], xl = (cxs[1] + cxs[2]) / 2;
+        g.strokeStyle = tok.accent; g.lineWidth = 1.4;
+        g.beginPath(); g.moveTo(xr, cy + P / 2 + 44); g.lineTo(xr, yL - 8); g.quadraticCurveTo(xr, yL, xr - 8, yL); g.lineTo(xl + 8, yL); g.quadraticCurveTo(xl, yL, xl, yL - 8); g.stroke();
+        arrow(g, xl, yL - 6, xl, cy + P / 2 + 46, tok.accent, 1.4);
+        label(g, "nudge every weight to shrink the gap, then repeat", (xl + xr) / 2, yL + 16, { color: tok.accent, size: 11.5, body: true, weight: 600 });
+        label(g, "teal: flock without ink   ·   orange: ink without flock", cxs[3] + P / 2, H - 6, { size: 10.5, align: "right", color: tok.faint });
+      }
+    },
+
+    // 8. Error against the real digit by step, original vs stable (measured on 500 test digits).
+    stable(g, W, H) {
+      const L = 44, R = W - 104, T = 46, B = H - 34;
+      const X = (t) => L + ((Math.log2(t) - 4) / 4) * (R - L), Y = (v) => B - (v / 2.4) * (B - T);
+      G.stableGeom = { X, L, R, T, B };
+      g.fillStyle = rgba(tok["s-stable"], 0.08); g.fillRect(X(16), T, X(32) - X(16), B - T);
+      label(g, "stable: taught", (X(16) + X(32)) / 2, T + 14, { size: 10.5, color: tok.muted });
+      label(g, "to hold still", (X(16) + X(32)) / 2, T + 28, { size: 10.5, color: tok.muted });
+      g.strokeStyle = tok.line; g.lineWidth = 1;
+      for (const v of [0, 0.5, 1, 1.5, 2]) { g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(R, Y(v)); g.stroke(); label(g, v.toFixed(1), L - 8, Y(v) + 4, { align: "right", size: 10.5, color: tok.faint }); }
+      STAB.steps.forEach((t) => label(g, String(t), X(t), B + 18, { size: 10.5, color: tok.faint }));
+      label(g, "step", R, B + 32, { size: 10.5, align: "right", color: tok.faint });
+      label(g, "error vs the real digit · lower is better", L, 14, { align: "left", size: 11, color: tok.muted });
+      if (G.hover != null) { g.strokeStyle = tok.muted; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(STAB.steps[G.hover]), T); g.lineTo(X(STAB.steps[G.hover]), B); g.stroke(); g.setLineDash([]); }
+      const series = [["original", tok["s-orig"], "Original"], ["stable", tok["s-stable"], "Stable"]];
+      for (const [key, color, name] of series) {
+        const v = STAB[key];
+        g.strokeStyle = color; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+        v.forEach((y, i) => (i ? g.lineTo(X(STAB.steps[i]), Y(y)) : g.moveTo(X(STAB.steps[i]), Y(y)))); g.stroke();
+        v.forEach((y, i) => { g.fillStyle = tok.surface; g.beginPath(); g.arc(X(STAB.steps[i]), Y(y), 6, 0, 7); g.fill(); g.fillStyle = color; g.beginPath(); g.arc(X(STAB.steps[i]), Y(y), 4, 0, 7); g.fill(); });
+        label(g, `${name} ${v[v.length - 1].toFixed(2)}`, R + 12, Y(v[v.length - 1]) + 4, { align: "left", size: 11.5, color: tok.ink });
+      }
+      // legend
+      let lx = L + 4;
+      for (const [, color, name] of series) { g.fillStyle = color; g.beginPath(); g.arc(lx, 28, 4, 0, 7); g.fill(); label(g, name, lx + 9, 32, { align: "left", size: 11, color: tok.ink }); lx += 82; }
+    },
+
+    // 9. The real weights, one square per number, at the same scale.
+    weights(g, W, H) {
+      const im = weightImages();
+      const Sd = Math.min(H * 0.66, W * 0.44), cell = Sd / 256, cy = H * 0.38, gapW = Math.max(44, W * 0.075);
+      const strip = 6 * cell, total = strip * 3 + Sd + gapW * 3, x0 = (W - total) / 2;
+      const blocks = [
+        { img: im.att, x: x0, w: strip, h: 42 * cell, name: "listen", n: "258", row: 1 },
+        { img: im.w1, x: x0 + strip + gapW, w: strip, h: Sd, name: "think, in", n: "1,792", row: 0 },
+        { img: im.w2, x: x0 + 2 * strip + 2 * gapW, w: Sd, h: Sd, name: "think, middle", n: "65,792", row: 0 },
+        { img: im.w3, x: x0 + 2 * strip + Sd + 3 * gapW, w: strip, h: Sd, name: "think, out", n: "1,542", row: 1 },
+      ];
+      g.imageSmoothingEnabled = false;
+      for (const b of blocks) {
+        const y = cy - b.h / 2;
+        g.fillStyle = tok.stage; g.fillRect(b.x, y, b.w, b.h);
+        g.drawImage(b.img, b.x, y, b.w, b.h);
+        g.strokeStyle = tok.line; g.lineWidth = 1; g.strokeRect(b.x - 0.5, y - 0.5, b.w + 1, b.h + 1);
+        const lx = b.x + b.w / 2, ly = cy + Sd / 2 + 22 + b.row * 40;
+        if (b.w < 30) { g.strokeStyle = tok.line; g.beginPath(); g.moveTo(lx, y + b.h + 4); g.lineTo(lx, ly - 14); g.stroke(); }
+        label(g, b.name, lx, ly, { color: tok.ink, size: 11.5, body: true, weight: 600 });
+        label(g, b.n, lx, ly + 15, { size: 11 });
+      }
+      for (let i = 0; i < 3; i++) arrow(g, blocks[i].x + blocks[i].w + 8, cy, blocks[i + 1].x - 8, cy, tok.faint, 1.2);
+    },
+  };
+
+  let wCache = { key: "", im: null };
+  function weightImages() {
+    const key = `${S.model}|${tok.pos}|${tok.neg}`;
+    if (wCache.key === key) return wCache.im;
+    const img = (rows, cols, at) => {
+      const cv = document.createElement("canvas"); cv.width = cols; cv.height = rows;
+      const c = cv.getContext("2d"), data = c.createImageData(cols, rows), pos = hexRGB(tok.pos), neg = hexRGB(tok.neg);
+      let ss = 0, cnt = 0; for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) { const v = at(r, q); if (v != null) { ss += v * v; cnt++; } }
+      const sc = 2.5 * Math.sqrt(ss / cnt);
+      for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) {
+        const v = at(r, q), o = 4 * (r * cols + q); if (v == null) continue;
+        const col = v >= 0 ? pos : neg;
+        data.data[o] = col[0]; data.data[o + 1] = col[1]; data.data[o + 2] = col[2]; data.data[o + 3] = Math.round(255 * Math.min(1, Math.abs(v) / sc));
+      }
+      c.putImageData(data, 0, 0); return cv;
+    };
+    const [l1, l2, l3] = model.ffn;
+    wCache = { key, im: {
+      att: img(42, 6, (r, q) => (r < 36 ? model.qkv[r * 6 + q] : model.outW[(r - 36) * 6 + q])),
+      w1: img(256, 6, (r, q) => l1.w[r * l1.nin + q]),
+      w2: img(256, 256, (r, q) => l2.w[r * l2.nin + q]),
+      w3: img(256, 6, (r, q) => l3.w[q * l3.nin + r]),
+    } };
+    return wCache.im;
+  }
+
+  function drawFig(id) {
+    if (guideEl.hidden || !figs[id]) return;
+    const ch = CHAPTERS.find((c) => c.id === id), a = guideBody.clientWidth < 600 ? ch.narrow : ch.aspect;
+    if (figs[id].style.aspectRatio !== String(a)) { figs[id].style.aspectRatio = String(a); figs[id].style.maxWidth = `calc(66vh * ${a})`; }
+    const [g, W, H] = figCtx(figs[id]);
+    if (W > 60) FIG[id](g, W, H);
+  }
+  function drawGuide() { CHAPTERS.forEach((c) => drawFig(c.id)); }
+
+  // hover on the stability chart: values at the nearest step
+  figs.stable.addEventListener("pointermove", (e) => {
+    const geo = G.stableGeom; if (!geo) return;
+    const r = figs.stable.getBoundingClientRect(), mx = e.clientX - r.left;
+    let best = 0; STAB.steps.forEach((t, i) => { if (Math.abs(geo.X(t) - mx) < Math.abs(geo.X(STAB.steps[best]) - mx)) best = i; });
+    if (G.hover !== best) { G.hover = best; drawFig("stable"); }
+    const tip = $("stableTip"), t = STAB.steps[best], x = geo.X(t);
+    tip.innerHTML = `step ${t}<br><i style="background:${tok["s-orig"]}"></i>Original ${STAB.original[best].toFixed(3)}<br><i style="background:${tok["s-stable"]}"></i>Stable ${STAB.stable[best].toFixed(3)}`;
+    tip.hidden = false;
+    const off = figs.stable.offsetLeft;
+    tip.style.left = `${off + (x > r.width * 0.6 ? x - tip.offsetWidth - 12 : x + 12)}px`;
+    tip.style.top = `${geo.T + 4}px`;
+  });
+  figs.stable.addEventListener("pointerleave", () => { G.hover = null; $("stableTip").hidden = true; drawFig("stable"); });
+
+  // ---------- modes, help sheet ----------
+  const app = document.getElementById("app");
+  const MODES = ["explore", "inspect", "design"];
+  const HINTS = { explore: "Drag on the pads to reshape the digit", inspect: "Click a boid to follow it through the network", design: "What you see here is what exports" };
+  function setMode(m) {
+    if (!MODES.includes(m)) m = "explore";
+    app.dataset.mode = m;
+    document.querySelectorAll(".modes [role=tab]").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.mode === m)));
+    $("hudHint").textContent = HINTS[m];
+    try { localStorage.setItem("digit-swarm-mode", m); } catch (e) {}
+    try { history.replaceState(null, "", "#" + m); } catch (e) {}
+  }
+  document.querySelectorAll(".modes [role=tab]").forEach((t) => t.addEventListener("click", () => setMode(t.dataset.mode)));
+
+  const ICONS = {
+    play: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 2.2v9.6L11.6 7z" fill="currentColor"/></svg>',
+    pause: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="3" y="2.5" width="2.8" height="9" rx="0.8" fill="currentColor"/><rect x="8.2" y="2.5" width="2.8" height="9" rx="0.8" fill="currentColor"/></svg>',
+    replay: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2.5a4.5 4.5 0 1 1-4.3 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M1.6 2.6l1.2 3.4 3.3-1.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  };
+
   document.addEventListener("keydown", (e) => {
+    if (!guideEl.hidden) { if (e.key === "Escape") closeGuide(); return; }
     if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === "e" || k === "i" || k === "d") return setMode({ e: "explore", i: "inspect", d: "design" }[k]);
+    if (e.key === "?") return openGuide();
+    if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.target.classList?.contains("xy-pad")) {
+      e.preventDefault(); S.playing = false;
+      S.t = Math.max(0, Math.min(S.steps, Math.round(S.t) + (e.key === "ArrowLeft" ? -1 : 1)));
+      return;
+    }
     if (/^[0-9]$/.test(e.key)) setLabel(+e.key);
-    else if (e.key === " " && e.target === document.body) { e.preventDefault(); togglePlay(); }
+    else if (e.key === " " && (e.target === document.body || e.target === playBtn)) { e.preventDefault(); if (e.target === document.body) togglePlay(); }
     else if (e.key === "s" || e.key === "S") sampleStyle();
   });
 
   // ---------- labels ----------
-  const $ = (id) => document.getElementById(id);
-  const f2 = (v) => (v < 0 ? "−" : " ") + Math.abs(v).toFixed(2);
   function updateLabels() {
     $("codeOut").textContent = `(${f2(S.code[0])}, ${f2(S.code[1])})`;
     $("styleOut").textContent = `(${f2(S.style[0])}, ${f2(S.style[1])})`;
@@ -660,14 +1738,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   }
 
   function updateReadouts(run, st) {
-    const n = run.n, x = st.x;
-    const mean = new Float64Array(D), sd = new Float64Array(D);
-    for (let i = 0; i < n; i++) for (let j = 0; j < D; j++) mean[j] += x[i * D + j] / n;
-    for (let i = 0; i < n; i++) for (let j = 0; j < D; j++) sd[j] += (x[i * D + j] - mean[j]) ** 2 / n;
-    const s = (j) => Math.sqrt(sd[j]).toFixed(2);
-    $("nowXY").textContent = `now: centre (${f2(mean[0])}, ${f2(mean[1])}), spread ${s(0)} × ${s(1)}`;
-    $("nowC").textContent = `now: (${f2(mean[2])}, ${f2(mean[3])}) for every boid`;
-    $("nowS").textContent = `now: mean (${f2(mean[4])}, ${f2(mean[5])}), spread ${s(4)}, ${s(5)}`;
+    const n = run.n;
     $("stepOut").textContent = `t ${st.t.toFixed(2).padStart(5, " ")} / ${S.steps}`;
     const lag = S.t > run.traj.length - 1 + 1e-6 || run !== live;
     $("tagRight").innerHTML = `${n} boids` + (lag ? `<br><span class="busy">computing step ${live.traj.length - 1}</span>` : "");
@@ -676,34 +1747,46 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   // ---------- loop ----------
   let last = performance.now(), padDirty = true;
   function frame(now) {
+    requestAnimationFrame(frame); // scheduled first, so one failed frame cannot stop the loop
+    if (!guideEl.hidden) return; // the guide covers the app; don't spend the CPU behind it
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     compute();
     if (S.playing) {
       S.t = Math.min(S.steps, S.t + dt * S.speed);
       if (S.t >= S.steps) S.playing = false;
     }
-    playBtn.textContent = S.playing ? "Pause" : S.t >= S.steps - 1e-6 ? "Replay" : "Play";
+    const ps = S.playing ? "pause" : S.t >= S.steps - 1e-6 ? "replay" : "play";
+    if (playBtn.dataset.state !== ps) {
+      playBtn.dataset.state = ps;
+      playBtn.innerHTML = ICONS[ps];
+      playBtn.setAttribute("aria-label", { play: "Play", pause: "Pause", replay: "Replay" }[ps]);
+    }
     if (document.activeElement !== scrub) scrub.value = S.t;
     const run = runFor(S.t);
     const st = stateAt(run, S.t);
+    drawFocus(run, st);
     drawView(run, st);
     codePad.draw();
     stylePad.draw();
     updateReadouts(run, st);
-    requestAnimationFrame(frame);
   }
 
-  function relayout() { fitView(); codePad.fit(); stylePad.fit(); }
+  function relayout() { fitView(); codePad.fit(); stylePad.fit(); netCanvases.forEach(fitCanvas); netKey = ""; }
   new ResizeObserver(relayout).observe(document.getElementById("stage"));
   new ResizeObserver(relayout).observe(stylePad.canvas);
   new ResizeObserver(relayout).observe(codePad.canvas);
-  const retheme = () => readTokens();
+  netCanvases.forEach((cv) => new ResizeObserver(relayout).observe(cv));
+  const retheme = () => { readTokens(); netKey = ""; if (!guideEl.hidden) drawGuide(); };
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
   new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   readTokens();
   buildTicks();
   S.code = model.codes[S.label].slice();
+  syncDisplay();
+  let startMode = location.hash.slice(1);
+  if (!MODES.includes(startMode)) { try { startMode = localStorage.getItem("digit-swarm-mode"); } catch (e) {} }
+  setMode(startMode);
   updateLabels();
   restart(true);
   relayout();

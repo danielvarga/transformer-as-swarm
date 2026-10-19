@@ -1,0 +1,50 @@
+fine-tuning from models/final.pt
+device mps, swarm params 69,384, encoder params 822,916
+epoch 0 step 116/468 recon 0.1712 kl 3.564 frame 0.00000 hold 0.2355 still 0.14759 beta 0.0100 lr 7.63e-05 0.456s/it
+epoch 0 step 233/468 recon 0.1744 kl 3.232 frame 0.00000 hold 0.1744 still 0.04617 beta 0.0100 lr 2.12e-04 0.448s/it
+epoch 0 step 350/468 recon 0.1531 kl 3.442 frame 0.00000 hold 0.1470 still 0.02725 beta 0.0100 lr 2.97e-04 0.448s/it
+epoch 0 step 467/468 recon 0.1662 kl 3.567 frame 0.00000 hold 0.1654 still 0.02282 beta 0.0100 lr 2.99e-04 0.442s/it
+=== epoch 0 done in 208s: test recon 0.1646 test kl 3.528
+    past step 16: t=32 mmd 0.1520 in-frame 100%, t=64 mmd 0.3350 in-frame 100%, t=128 mmd 0.8482 in-frame 100%
+epoch 1 step 116/468 recon 0.1519 kl 3.555 frame 0.00000 hold 0.1523 still 0.01729 beta 0.0100 lr 2.97e-04 0.415s/it
+epoch 1 step 233/468 recon 0.1459 kl 3.561 frame 0.00000 hold 0.1412 still 0.01474 beta 0.0100 lr 2.93e-04 0.416s/it
+epoch 1 step 350/468 recon 0.1498 kl 3.682 frame 0.00000 hold 0.1470 still 0.01597 beta 0.0100 lr 2.87e-04 0.416s/it
+epoch 1 step 467/468 recon 0.1454 kl 3.698 frame 0.00000 hold 0.1518 still 0.01370 beta 0.0100 lr 2.80e-04 0.416s/it
+=== epoch 1 done in 196s: test recon 0.1533 test kl 3.728
+    past step 16: t=32 mmd 0.1465 in-frame 100%, t=64 mmd 0.3016 in-frame 100%, t=128 mmd 0.7771 in-frame 100%
+epoch 2 step 116/468 recon 0.1435 kl 3.533 frame 0.00000 hold 0.1504 still 0.01061 beta 0.0100 lr 2.71e-04 0.413s/it
+epoch 2 step 233/468 recon 0.1480 kl 3.602 frame 0.00000 hold 0.1551 still 0.01310 beta 0.0100 lr 2.60e-04 0.414s/it
+epoch 2 step 350/468 recon 0.1429 kl 3.653 frame 0.00000 hold 0.1459 still 0.01097 beta 0.0100 lr 2.49e-04 0.417s/it
+epoch 2 step 467/468 recon 0.1450 kl 3.589 frame 0.00000 hold 0.1431 still 0.01279 beta 0.0100 lr 2.36e-04 0.425s/it
+=== epoch 2 done in 200s: test recon 0.1498 test kl 3.701
+    past step 16: t=32 mmd 0.1422 in-frame 100%, t=64 mmd 0.2588 in-frame 100%, t=128 mmd 0.6211 in-frame 100%
+epoch 3 step 116/468 recon 0.1376 kl 3.781 frame 0.00000 hold 0.1451 still 0.01148 beta 0.0100 lr 2.22e-04 0.414s/it
+epoch 3 step 233/468 recon 0.1347 kl 3.652 frame 0.00000 hold 0.1412 still 0.00930 beta 0.0100 lr 2.07e-04 0.416s/it
+epoch 3 step 350/468 recon 0.1287 kl 3.640 frame 0.00000 hold 0.1417 still 0.01032 beta 0.0100 lr 1.92e-04 0.458s/it
+epoch 3 step 467/468 recon 0.1391 kl 3.666 frame 0.00000 hold 0.1482 still 0.00966 beta 0.0100 lr 1.76e-04 0.487s/it
+=== epoch 3 done in 229s: test recon 0.1473 test kl 3.683
+    past step 16: t=32 mmd 0.1377 in-frame 100%, t=64 mmd 0.2405 in-frame 100%, t=128 mmd 0.5609 in-frame 100%
+epoch 4 step 116/468 recon 0.1357 kl 3.780 frame 0.00000 hold 0.1386 still 0.01147 beta 0.0100 lr 1.60e-04 0.494s/it
+epoch 4 step 233/468 recon 0.1365 kl 3.686 frame 0.00000 hold 0.1406 still 0.00920 beta 0.0100 lr 1.43e-04 0.499s/it
+epoch 4 step 350/468 recon 0.1369 kl 3.727 frame 0.00000 hold 0.1428 still 0.00899 beta 0.0100 lr 1.27e-04 0.521s/it
+epoch 4 step 467/468 recon 0.1363 kl 3.702 frame 0.00000 hold 0.1404 still 0.00886 beta 0.0100 lr 1.11e-04 0.524s/it
+=== epoch 4 done in 246s: test recon 0.1449 test kl 3.700
+    past step 16: t=32 mmd 0.1364 in-frame 100%, t=64 mmd 0.2346 in-frame 100%, t=128 mmd 0.5554 in-frame 100%
+epoch 5 step 116/468 recon 0.1315 kl 3.766 frame 0.00000 hold 0.1320 still 0.01009 beta 0.0100 lr 9.55e-05 0.490s/it
+epoch 5 step 233/468 recon 0.1391 kl 3.660 frame 0.00000 hold 0.1429 still 0.00970 beta 0.0100 lr 8.06e-05 0.494s/it
+epoch 5 step 350/468 recon 0.1369 kl 3.666 frame 0.00000 hold 0.1417 still 0.00885 beta 0.0100 lr 6.65e-05 0.535s/it
+epoch 5 step 467/468 recon 0.1386 kl 3.663 frame 0.00000 hold 0.1431 still 0.00823 beta 0.0100 lr 5.35e-05 0.561s/it
+=== epoch 5 done in 264s: test recon 0.1442 test kl 3.715
+    past step 16: t=32 mmd 0.1352 in-frame 100%, t=64 mmd 0.2245 in-frame 100%, t=128 mmd 0.5214 in-frame 100%
+epoch 6 step 116/468 recon 0.1377 kl 3.684 frame 0.00000 hold 0.1437 still 0.00952 beta 0.0100 lr 4.15e-05 0.521s/it
+epoch 6 step 233/468 recon 0.1376 kl 3.748 frame 0.00000 hold 0.1422 still 0.00832 beta 0.0100 lr 3.09e-05 0.538s/it
+epoch 6 step 350/468 recon 0.1341 kl 3.784 frame 0.00000 hold 0.1372 still 0.00883 beta 0.0100 lr 2.17e-05 0.523s/it
+epoch 6 step 467/468 recon 0.1456 kl 3.739 frame 0.00000 hold 0.1511 still 0.00926 beta 0.0100 lr 1.40e-05 0.520s/it
+=== epoch 6 done in 244s: test recon 0.1436 test kl 3.733
+    past step 16: t=32 mmd 0.1350 in-frame 100%, t=64 mmd 0.2221 in-frame 100%, t=128 mmd 0.5128 in-frame 100%
+epoch 7 step 116/468 recon 0.1320 kl 3.730 frame 0.00000 hold 0.1343 still 0.00886 beta 0.0100 lr 7.92e-06 0.419s/it
+epoch 7 step 233/468 recon 0.1375 kl 3.742 frame 0.00000 hold 0.1410 still 0.00850 beta 0.0100 lr 3.53e-06 0.415s/it
+epoch 7 step 350/468 recon 0.1238 kl 3.665 frame 0.00000 hold 0.1321 still 0.00761 beta 0.0100 lr 8.78e-07 0.415s/it
+epoch 7 step 467/468 recon 0.1343 kl 3.575 frame 0.00000 hold 0.1382 still 0.00824 beta 0.0100 lr 1.27e-09 0.415s/it
+=== epoch 7 done in 195s: test recon 0.1433 test kl 3.732
+    past step 16: t=32 mmd 0.1347 in-frame 100%, t=64 mmd 0.2221 in-frame 100%, t=128 mmd 0.5138 in-frame 100%
