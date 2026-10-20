@@ -604,7 +604,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     restoredCode = Array.isArray(saved.code) && saved.code.length === 2;
   } catch (e) {}
   if (!MODELS.some((m) => m.name === S.model)) S.model = MODELS[MODELS.length - 1].name;
-  if (![64, 128, 256, 512].includes(S.n)) S.n = 128;
+  if (![64, 128, 256, 512, 1024, 2048].includes(S.n)) S.n = 128;
   if (![16, 32, 64, 128, 256].includes(S.steps)) S.steps = 16;
   if (!(S.label >= 0 && S.label <= 9)) S.label = 7;
   model = load(S.model);
@@ -638,9 +638,9 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     if (cached) {
       runCache.delete(key); runCache.set(key, cached); // most recently used
       const traj = cached.slice(0, S.steps + 1);
-      return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, key, x: traj[traj.length - 1].slice(), traj, init };
+      return { n: S.n, model: S.model, label: S.label, style: S.style.slice(), steps: S.steps, key, x: traj[traj.length - 1].slice(), traj, init, asked: 0, job: 0 };
     }
-    return { n: S.n, label: S.label, style: S.style.slice(), steps: S.steps, key, x, traj: [x.slice()], init };
+    return { n: S.n, model: S.model, label: S.label, style: S.style.slice(), steps: S.steps, key, x, traj: [x.slice()], init, asked: 0, job: 0 };
   }
   // Seeded noise (mulberry32 + Box-Muller): the same seed always gives the same jitter.
   const rng = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
@@ -656,7 +656,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
 
   // Finished runs are kept in memory, so returning to a digit, style or setting is instant.
   const runCache = new Map(); // key -> trajectory (array of states); insertion order = recency
-  const CACHE_FLOATS = 8e6;   // about 64 MB of states
+  const CACHE_FLOATS = 16e6;  // about 128 MB of states (a 2048-bird, 256-step run is ~25 MB)
   const runKey = () => [S.model, S.n, ...S.code.map((v) => v.toFixed(5)), ...S.style.map((v) => v.toFixed(5)), S.jitter.toFixed(4), S.jitter ? S.jitterSeed : 0].join("|");
   function remember(r) {
     const prev = runCache.get(r.key);
@@ -682,11 +682,36 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
     }
   }
 
+  // Steps are computed in a Web Worker, so even 2048 birds keep the page smooth; states stream back one step at a time.
+  // Without a worker (e.g. the file opened from disk) the steps run here instead, inside a per-frame budget.
+  const MODEL_SCRIPTS = ["swarm.js", "models/original.js", "models/stable.js"];
+  let worker = null, jobSeq = 0, activeJob = 0;
+  try {
+    worker = new Worker("worker.js");
+    worker.postMessage({ type: "init", scripts: MODEL_SCRIPTS });
+    worker.onmessage = (e) => {
+      const { id, t, x } = e.data;
+      if (!live || live.job !== id || t !== live.traj.length || t > live.steps) return;
+      live.traj.push(x);
+      live.x = x.slice();
+    };
+    worker.onerror = (e) => { e.preventDefault?.(); worker = null; if (live) live.asked = 0; }; // fall back to the main thread
+  } catch (e) { worker = null; }
+
   function compute() {
-    const t0 = performance.now();
-    while (!done(live) && performance.now() - t0 < 12) {
-      model.step(live.x, live.n);
-      live.traj.push(live.x.slice());
+    if (activeJob && (!live || live.job !== activeJob || done(live))) { worker?.postMessage({ type: "cancel", id: activeJob }); activeJob = 0; }
+    if (worker) {
+      if (!done(live) && live.asked < live.steps) {
+        const from = live.traj.length - 1;
+        live.job = activeJob = ++jobSeq; live.asked = live.steps;
+        worker.postMessage({ type: "run", id: live.job, model: live.model, n: live.n, x: live.traj[from].slice(), from, to: live.steps });
+      }
+    } else {
+      const t0 = performance.now();
+      while (!done(live) && performance.now() - t0 < 12) {
+        model.step(live.x, live.n);
+        live.traj.push(live.x.slice());
+      }
     }
     if (done(live)) {
       remember(live);
@@ -1336,7 +1361,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
   modelSel.innerHTML = MODELS.map((m) => `<option value="${m.name}" title="${m.note.replace(/"/g, "&quot;")}">${m.title}</option>`).join("");
   modelSel.value = S.model;
   modelSel.addEventListener("change", () => { S.model = modelSel.value; model = load(S.model); restart(true); updateLabels(); });
-  segmented("segN", [[64, "64"], [128, "128"], [256, "256"], [512, "512"]], "n", () => restart(true));
+  segmented("segN", [[64, "64"], [128, "128"], [256, "256"], [512, "512"], [1024, "1k"], [2048, "2k"]], "n", () => restart(true));
   segmented("segSteps", [[16, "16"], [32, "32"], [64, "64"], [128, "128"], [256, "256"]], "steps", setSteps);
   segmented("segSpeed", [[2, "½×"], [4, "1×"], [10, "2.5×"], [40, "10×"]], "speed");
   const onOff = [["on", "on"], ["off", "off"]];
@@ -1445,6 +1470,7 @@ button:focus-visible, .xy-pad:focus-visible, input:focus-visible { outline: 2px 
       if (!r) continue;
       r.steps = S.steps;
       if (r.traj.length - 1 > S.steps) { r.traj.length = S.steps + 1; r.x = r.traj[S.steps].slice(); }
+      r.asked = Math.min(r.asked, S.steps);
     }
     if (shown && !done(shown)) shown = null;
     S.t = Math.min(S.t, S.steps);
